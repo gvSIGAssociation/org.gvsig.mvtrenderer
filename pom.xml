@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>org.gvsig.mvtrenderer</artifactId>
+    <groupId>org.gvsig</groupId>
+    <packaging>pom</packaging>
+    <version>1.0.0-SNAPSHOT</version>
+    <name>${project.artifactId}</name>
+    <description>Mapbox vector tile renderer</description>
+
+
+    <licenses>
+        <license>
+            <name>GPLv3</name>
+            <url>http://www.gnu.org/licenses/gpl.html</url>
+            <distribution>repo</distribution>
+            <comments>
+                "GPL" stands for "General Public License". The most widespread such
+                license is the GNU General Public License, or GNU GPL for short.
+                This can be further shortened to "GPL", when it is understood that
+                the GNU GPL is the one intended.
+            </comments>
+        </license>
+    </licenses>
+    
+    <organization>
+        <name>gvSIG Association</name>
+        <url>http://www.gvsig.com/</url>
+    </organization>
+   <!-- FIXME URL-->
+    <url>http://devel.gvsig.org/sites/${project.artifactId}/${project.version}</url>
+   <!--
+    <scm>
+        <connection>scm:svn:https://devel.gvsig.org/svn/gvsig-jcrs/org.gvsig.proj/trunk/org.gvsig.proj/</connection>
+        <developerConnection>scm:svn:https://devel.gvsig.org/svn/gvsig-jcrs/org.gvsig.proj/trunk/org.gvsig.proj/</developerConnection>
+        <url>https://devel.gvsig.org/redmine/projects/gvsig-jcrs/repository/show/org.gvsig.proj/trunk/org.gvsig.proj/</url>
+    </scm>
+    -->	
+    <repositories>
+        <repository>
+            <id>geotools-repository</id>
+            <name>geotools-repository</name>
+            <url>https://repo.osgeo.org/repository/geotools-releases/</url>
+        </repository>
+    </repositories>
+
+    <distributionManagement>
+        <repository>
+            <id>geotools-repository</id>
+            <name>geotools-repository</name>
+            <url>https://repo.osgeo.org/repository/geotools-releases/</url>
+        </repository>
+    </distributionManagement>
+
+<!--
+    <issueManagement>
+        <system>redmine</system>
+        <url>https://devel.gvsig.org/redmine/projects/gvsig-jcrs</url>
+    </issueManagement>
+
+    <mailingLists>
+        <mailingList>
+            <name>User List</name>
+            <subscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_usuarios</subscribe>
+            <unsubscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_usuarios</unsubscribe>
+            <post>gvsig_usuarios@listserv.gva.es</post>
+            <archive>http://www.gvsig.org/web/community/mailing-lists/gvsig-nabble</archive>
+            <otherArchives>
+                <otherArchive>http://www.mail-archive.com/gvsig_usuarios@runas.cap.gva.es</otherArchive>
+                <otherArchive>http://dir.gmane.org/index.php?prefix=gmane.comp.gis.gvsig</otherArchive>
+            </otherArchives>
+        </mailingList>
+        <mailingList>
+            <name>Developer List</name>
+            <subscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_desarrolladores</subscribe>
+            <unsubscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_desarrolladores</unsubscribe>
+            <post>gvsig_desarrolladores@listserv.gva.es</post>
+            <archive>http://www.gvsig.org/web/community/mailing-lists/gvsig-nabble</archive>
+            <otherArchives>
+                <otherArchive>http://www.mail-archive.com/gvsig_desarrolladores@runas.cap.gva.es</otherArchive>
+                <otherArchive>http://dir.gmane.org/index.php?prefix=gmane.comp.gis.gvsig</otherArchive>
+            </otherArchives>
+        </mailingList>
+        <mailingList>
+            <name>International List</name>
+            <subscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_internacional</subscribe>
+            <unsubscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_internacional</unsubscribe>
+            <post>gvsig_internacional@listserv.gva.es</post>
+            <archive>http://www.gvsig.org/web/community/mailing-lists/gvsig-nabble</archive>
+            <otherArchives>
+                <otherArchive>http://www.mail-archive.com/gvsig_internacional@runas.cap.gva.es</otherArchive>
+                <otherArchive>http://dir.gmane.org/index.php?prefix=gmane.comp.gis.gvsig</otherArchive>
+            </otherArchives>
+        </mailingList>
+    </mailingLists>
+-->
+        
+    <developers>
+        <developer>
+            <id>jjdelcerro</id>
+            <name>Joaquín José del Cerro</name>
+            <email>jjdelcerro@gvsig.com</email>
+            <roles>
+                <role>Architect</role>
+                <role>Developer</role>
+            </roles>
+        </developer>
+        <developer>
+            <id>fdiaz</id>
+            <name>Francisco Díaz</name>
+            <email>fdiaz@gvsig.com</email>
+            <roles>
+                <role>Architect</role>
+                <role>Developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Source: https://mvnrepository.com/artifact/org.geotools/gt-mbstyle -->
+            <dependency>
+                <groupId>org.geotools</groupId>
+                <artifactId>gt-mbstyle</artifactId>
+                <version>33.1</version>
+            </dependency>
+            
+            <!-- Source: https://mvnrepository.com/artifact/org.geotools/gt-main -->
+            <dependency>
+                <groupId>org.geotools</groupId>
+                <artifactId>gt-main</artifactId>
+                <version>33.1</version>
+            </dependency>    
+            
+            <dependency>
+                <groupId>org.locationtech.jts</groupId>
+                <artifactId>jts-core</artifactId>
+                <version>1.20.0</version>
+            </dependency>
+            
+            <dependency>
+            	<groupId>io.github.sebasbaumh</groupId>
+              <artifactId>mapbox-vector-tile-java</artifactId>
+              <version>23.2.0</version>
+            </dependency>
+
+	                        
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven.compiler.plugin.version}</version>
+                    <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
+                        <encoding>${encoding}</encoding>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>${maven.resources.plugin.version}</version>
+                    <configuration>
+                        <encoding>${encoding}</encoding>
+                    </configuration>
+                </plugin>
+        
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>${maven.jar.plugin.version}</version>
+                    <configuration>
+                        <archive>
+                            <manifestEntries>
+                                <Built-By>gvSIG Team</Built-By>
+                            </manifestEntries>
+                        </archive>
+                    </configuration>
+                </plugin>
+          
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>${maven.release.plugin.version}</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>${maven.clean.plugin.version}</version>
+                </plugin>
+          
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>${exec.maven.plugin.version}</version>
+                </plugin>    
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>${maven.source.plugin.version}</version>
+                </plugin>
+
+            </plugins>
+        </pluginManagement>
+       
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                </configuration>
+                <executions>
+                    <!-- Generates a jar file only with the test classes -->
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+	
+    <properties>
+        <!-- Maven plugins versions -->    
+        <maven.compiler.plugin.version>3.8.1</maven.compiler.plugin.version>
+        <maven.resources.plugin.version>3.2.0</maven.resources.plugin.version>
+        <maven.jar.plugin.version>3.2.0</maven.jar.plugin.version>
+        <maven.release.plugin.version>2.5.3</maven.release.plugin.version>
+        <maven.assembly.plugin.version>2.2-beta-5</maven.assembly.plugin.version>
+        <maven.clean.plugin.version>2.5</maven.clean.plugin.version>
+        <exec.maven.plugin.version>3.0.0</exec.maven.plugin.version>
+        <maven.source.plugin.version>3.2.1</maven.source.plugin.version>
+        <maven.scm.plugin.version>1.11.2</maven.scm.plugin.version>
+
+        <encoding>UTF-8</encoding>
+        <java.version>17</java.version>
+
+        <localRepository>${user.home}/.m2/repository</localRepository>
+
+    </properties>
+
+    <modules>
+        <module>org.gvsig.mvtrenderer.main</module>
+    </modules>
+</project>
