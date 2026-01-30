@@ -27,6 +27,7 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.util.Collections;
+import java.util.logging.Logger;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.api.style.Style;
@@ -48,6 +49,7 @@ import org.locationtech.jts.geom.Polygon;
  * @author fdiaz
  */
 public class MVTLayer {
+  private static final Logger LOGGER = Logger.getLogger(MVTLayer.class.getName());
 
   private final String id;
   private final SimpleFeatureCollection features;
@@ -104,27 +106,25 @@ public class MVTLayer {
     }
     MapContent mapContent = new MapContent();
     try {
-      for (int retry = 0; retry < 2; retry++) {
-        FeatureLayer layer = new FeatureLayer(features, style);
-        mapContent.addLayer(layer);
+      FeatureLayer layer = new FeatureLayer(features, style);
+      mapContent.addLayer(layer);
 
-        StreamingRenderer renderer = new StreamingRenderer();
-        renderer.setMapContent(mapContent);
+      StreamingRenderer renderer = new StreamingRenderer();
+      renderer.setMapContent(mapContent);
 
-        // Crear los hints de suavizado
-        RenderingHints hints = new RenderingHints(
-                RenderingHints.KEY_ANTIALIASING,
-                RenderingHints.VALUE_ANTIALIAS_ON
-        );
+      // Crear los hints de suavizado
+      RenderingHints hints = new RenderingHints(
+              RenderingHints.KEY_ANTIALIASING,
+              RenderingHints.VALUE_ANTIALIAS_ON
+      );
 
-        // También es recomendable activar el suavizado de texto si tienes etiquetas
-        hints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+      // También es recomendable activar el suavizado de texto si tienes etiquetas
+      hints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        // Aplicarlos al renderizador
-        renderer.setJava2DHints(hints);
+      // Aplicarlos al renderizador
+      renderer.setJava2DHints(hints);
 
-        renderer.paint(g2d, drawingArea, this.envelope);
-      }
+      renderer.paint(g2d, drawingArea, this.envelope);
 
     } finally {
       mapContent.dispose();

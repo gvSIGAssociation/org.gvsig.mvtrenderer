@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="ISO-8859-1"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <artifactId>org.gvsig.mvtrenderer</artifactId>
@@ -27,16 +27,31 @@
         <name>gvSIG Association</name>
         <url>http://www.gvsig.com/</url>
     </organization>
-   <!-- FIXME URL-->
-    <url>http://devel.gvsig.org/sites/${project.artifactId}/${project.version}</url>
-   <!--
+    
+    <url>https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer</url>
+
     <scm>
-        <connection>scm:svn:https://devel.gvsig.org/svn/gvsig-jcrs/org.gvsig.proj/trunk/org.gvsig.proj/</connection>
-        <developerConnection>scm:svn:https://devel.gvsig.org/svn/gvsig-jcrs/org.gvsig.proj/trunk/org.gvsig.proj/</developerConnection>
-        <url>https://devel.gvsig.org/redmine/projects/gvsig-jcrs/repository/show/org.gvsig.proj/trunk/org.gvsig.proj/</url>
+        <connection>scm:git:git@github.com:gvSIGAssociation/org.gvsig.mvtrenderer.git</connection>
+        <developerConnection>scm:git:git@github.com:gvSIGAssociation/org.gvsig.mvtrenderer.git</developerConnection>
+        <url>https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer</url>
     </scm>
-    -->	
+    
     <repositories>
+        <repository>
+            <id>gvsig-public-http-repository</id>
+            <name>gvSIG maven public HTTP repository</name>
+            <url>https://devel.gvsig.org/m2repo/j2se</url>
+            <releases>
+                <enabled>true</enabled>
+                <updatePolicy>daily</updatePolicy>
+                <checksumPolicy>warn</checksumPolicy>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>daily</updatePolicy>
+                <checksumPolicy>warn</checksumPolicy>
+            </snapshots>
+        </repository>
         <repository>
             <id>geotools-repository</id>
             <name>geotools-repository</name>
@@ -45,60 +60,28 @@
     </repositories>
 
     <distributionManagement>
+        <site>
+            <id>gvsig-repository</id>
+            <url>dav:https://devel.gvsig.org/sites/${project.artifactId}/${project.version}</url>
+        </site>
         <repository>
-            <id>geotools-repository</id>
-            <name>geotools-repository</name>
-            <url>https://repo.osgeo.org/repository/geotools-releases/</url>
+            <id>gvsig-repository</id>
+            <name>gvSIG maven repository</name>
+            <url>dav:https://devel.gvsig.org/m2repo/j2se</url>
+            <uniqueVersion>false</uniqueVersion>
         </repository>
+        <snapshotRepository>
+            <id>gvsig-repository</id>
+            <name>gvSIG maven repository</name>
+            <url>dav:https://devel.gvsig.org/m2repo/j2se</url>
+            <uniqueVersion>false</uniqueVersion>
+        </snapshotRepository>
     </distributionManagement>
-
-<!--
-    <issueManagement>
-        <system>redmine</system>
-        <url>https://devel.gvsig.org/redmine/projects/gvsig-jcrs</url>
-    </issueManagement>
-
-    <mailingLists>
-        <mailingList>
-            <name>User List</name>
-            <subscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_usuarios</subscribe>
-            <unsubscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_usuarios</unsubscribe>
-            <post>gvsig_usuarios@listserv.gva.es</post>
-            <archive>http://www.gvsig.org/web/community/mailing-lists/gvsig-nabble</archive>
-            <otherArchives>
-                <otherArchive>http://www.mail-archive.com/gvsig_usuarios@runas.cap.gva.es</otherArchive>
-                <otherArchive>http://dir.gmane.org/index.php?prefix=gmane.comp.gis.gvsig</otherArchive>
-            </otherArchives>
-        </mailingList>
-        <mailingList>
-            <name>Developer List</name>
-            <subscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_desarrolladores</subscribe>
-            <unsubscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_desarrolladores</unsubscribe>
-            <post>gvsig_desarrolladores@listserv.gva.es</post>
-            <archive>http://www.gvsig.org/web/community/mailing-lists/gvsig-nabble</archive>
-            <otherArchives>
-                <otherArchive>http://www.mail-archive.com/gvsig_desarrolladores@runas.cap.gva.es</otherArchive>
-                <otherArchive>http://dir.gmane.org/index.php?prefix=gmane.comp.gis.gvsig</otherArchive>
-            </otherArchives>
-        </mailingList>
-        <mailingList>
-            <name>International List</name>
-            <subscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_internacional</subscribe>
-            <unsubscribe>http://listserv.gva.es/cgi-bin/mailman/listinfo/gvsig_internacional</unsubscribe>
-            <post>gvsig_internacional@listserv.gva.es</post>
-            <archive>http://www.gvsig.org/web/community/mailing-lists/gvsig-nabble</archive>
-            <otherArchives>
-                <otherArchive>http://www.mail-archive.com/gvsig_internacional@runas.cap.gva.es</otherArchive>
-                <otherArchive>http://dir.gmane.org/index.php?prefix=gmane.comp.gis.gvsig</otherArchive>
-            </otherArchives>
-        </mailingList>
-    </mailingLists>
--->
         
     <developers>
         <developer>
             <id>jjdelcerro</id>
-            <name>Joaquín José del Cerro</name>
+            <name>Joaquí­n José del Cerro</name>
             <email>jjdelcerro@gvsig.com</email>
             <roles>
                 <role>Architect</role>
@@ -107,7 +90,7 @@
         </developer>
         <developer>
             <id>fdiaz</id>
-            <name>Francisco Díaz</name>
+            <name>Francisco Dí­az</name>
             <email>fdiaz@gvsig.com</email>
             <roles>
                 <role>Architect</role>
@@ -149,6 +132,13 @@
     </dependencyManagement>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>org.apache.maven.wagon</groupId>
+                <artifactId>wagon-webdav-jackrabbit</artifactId>
+                <version>2.4</version>
+            </extension>
+        </extensions>
         <pluginManagement>
             <plugins>
                 <plugin>
