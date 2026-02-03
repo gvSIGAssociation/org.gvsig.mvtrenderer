@@ -29,6 +29,7 @@ import io.github.sebasbaumh.mapbox.vectortile.adapt.jts.model.JtsLayer;
 import io.github.sebasbaumh.mapbox.vectortile.adapt.jts.model.JtsMvt;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -55,10 +56,14 @@ import org.apache.commons.io.IOUtils;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.api.feature.type.AttributeDescriptor;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.map.FeatureLayer;
+import org.geotools.map.MapContent;
+import org.geotools.renderer.lite.StreamingRenderer;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -78,9 +83,21 @@ public class MVTTile {
   private int tileX;
   private int tileY;
   private int tileZ;
-  private Integer forcedExtent = null;
   private Envelope envelope;
+  private CoordinateReferenceSystem tileCRS;
+  private CoordinateReferenceSystem mapCRS;
 
+  public MVTTile() {
+    
+  }
+  
+  public MVTTile(CoordinateReferenceSystem tileCRS, CoordinateReferenceSystem mapCRS) {
+    if( tileCRS != null && mapCRS != null ) {
+      this.tileCRS = tileCRS;
+      this.mapCRS = mapCRS;
+    }
+  }
+  
   public static class MVTDataSource {
 
     SimpleFeatureCollection features;
@@ -94,14 +111,6 @@ public class MVTTile {
     }
 
   }
-
-//  public Integer getForcedExtent() {
-//    return forcedExtent;
-//  }
-//
-//  public void setForcedExtent(Integer forcedExtent) {
-//    this.forcedExtent = forcedExtent;
-//  }
 
   public void download(URL url, Envelope envelope) throws IOException {
     try (InputStream is = url.openStream()) {
@@ -122,35 +131,35 @@ public class MVTTile {
   public void download(InputStream is, Envelope envelope ) throws IOException {
     final GeometryFactory geometryFactory = new GeometryFactory();
     try (PushbackInputStream pbIs = new PushbackInputStream(is, 2)) {
+      
       // Comprobar "Magic Numbers" de GZIP (0x1f, 0x8b)
       byte[] signature = new byte[2];
       int len = pbIs.read(signature);
-      pbIs.unread(signature, 0, len); // Devolver bytes al stream
+      pbIs.unread(signature, 0, len); 
 
       InputStream finalIs = pbIs;
       if (len == 2 && signature[0] == (byte) 0x1f && signature[1] == (byte) 0x8b) {
         finalIs = new GZIPInputStream(pbIs);
       }
+      
+    // Cargamos los datos del stream
       JtsMvt mvt = MvtReader.loadMvt(finalIs, geometryFactory, new TagKeyValueMapConverter());
       this.envelope = envelope;
-      sourceLayers.clear();
+      this.sourceLayers.clear();
 
       for (JtsLayer layer : mvt.getLayers()) {
         int tileSize = layer.getExtent();
-        // If forcedExtent is set, we normalize to that value. 
-        // Otherwise we use the native extent from the layer.
-//        int targetExtent = (this.forcedExtent != null) ? this.forcedExtent : tileSize;
         double scaleX = envelope.getWidth() / tileSize;
         double scaleY = envelope.getHeight()/ tileSize;
 
-        // Apply transformation to flip Y axis and scale to targetExtent
         AffineTransformation t = new AffineTransformation();
         t.scale(scaleX, -scaleY);
         t.translate(envelope.getMinX(), envelope.getMaxY());
 
         SimpleFeatureCollection collection = convertToFeatureCollection(layer, t);
-        MVTDataSource miLayer = new MVTDataSource(collection, layer.getName(), envelope);
-        sourceLayers.put(layer.getName(), miLayer);
+        MVTDataSource theLayer = new MVTDataSource(collection, layer.getName(), envelope);
+        
+        this.sourceLayers.put(layer.getName(), theLayer);
       }
     }
   }
@@ -164,9 +173,28 @@ public class MVTTile {
 
       List<MVTLayer> layersToDraw = mvtStyle.getLayersToDraw(sourceLayers, envelope);
 
-      for (MVTLayer layer : layersToDraw) {
-        layer.render(g2, drawingArea);
+      MapContent mapContent = new MapContent();
+      if( this.mapCRS != null ) {
+        mapContent.getViewport().setCoordinateReferenceSystem(this.mapCRS);
       }
+      StreamingRenderer renderer = new StreamingRenderer();
+      renderer.setMapContent(mapContent);
+      // Crear los hints de suavizado
+      RenderingHints hints = new RenderingHints(
+              RenderingHints.KEY_ANTIALIASING,
+              RenderingHints.VALUE_ANTIALIAS_ON
+      );
+      // También es recomendable activar el suavizado de texto si tienes etiquetas
+      hints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+      // Aplicarlos al renderizador
+      renderer.setJava2DHints(hints);
+
+      for (MVTLayer layer : layersToDraw) {
+        FeatureLayer featureLayer = new FeatureLayer(layer.getFeatures(), layer.getStyle());
+        mapContent.addLayer(featureLayer);
+      }
+      renderer.paint(g2, drawingArea, envelope);
+      
     } finally {
       g2.dispose();
     }
@@ -210,8 +238,7 @@ public class MVTTile {
   }
 
   private SimpleFeatureCollection convertToFeatureCollection(JtsLayer layer, AffineTransformation t) {
-    FileWriter writer = null;
-    BufferedWriter csvWriter = null;
+    Writer[] writers = null;
     try {
       Set<String> attributeNames = new HashSet<>();
       for (Geometry geom : layer.getGeometries()) {
@@ -228,20 +255,12 @@ public class MVTTile {
         // GeoTools es estricto con los tipos. Object suele funcionar para evaluación laxa.
         tb.add(attr, Object.class);
       }
-      SimpleFeatureType type = tb.buildFeatureType();
-      if (this.debugMode) {
-        saveInfo(layer);
-        String folder = getFolder();
-        String fname = folder + layer.getName().replace('/', '_').replace(':', '_') + ".csv";
-        writer = new FileWriter(fname, false);
-        csvWriter = new BufferedWriter(writer, 8096);
-        for (AttributeDescriptor attributeDescriptor : type.getAttributeDescriptors()) {
-          csvWriter.append("\"");
-          csvWriter.append(attributeDescriptor.getLocalName());
-          csvWriter.append("\";");
-        }
-        csvWriter.append("\"geom\"\n");
+      if( this.tileCRS!=null ) {
+        tb.setCRS(this.tileCRS);
       }
+      SimpleFeatureType type = tb.buildFeatureType();
+      writers = prepareCSV(layer, type);
+      
       List<SimpleFeature> features = new ArrayList<>();
       SimpleFeatureBuilder fb = new SimpleFeatureBuilder(type);
       for (Geometry geom : layer.getGeometries()) {
@@ -258,30 +277,49 @@ public class MVTTile {
           }
         }
         SimpleFeature f = fb.buildFeature(null);
-        if (this.debugMode) {
-          addRowToCSV(csvWriter, f, geom);
-        }
+        addRowToCSV(writers, f, geom);
         features.add(f);
-      }
-      if (this.debugMode) {
-        writer.flush();
-        csvWriter.flush();
       }
       return new ListFeatureCollection(type, features);
     } catch (IOException ex) {
       LOGGER.log(Level.WARNING, "Can't convert to FeatureCollection", ex);
       return null;
     } finally {
-      try {
-        IOUtils.close(writer);
-        IOUtils.close(csvWriter);
-      } catch (IOException ex) {
-        LOGGER.log(Level.WARNING, "Can't close csv file", ex);
-      }
+      closeCSV(writers);
     }
   }
 
-  private void addRowToCSV(Writer writer, SimpleFeature f, Geometry geom) throws IOException {
+  private Writer[] prepareCSV(JtsLayer layer, SimpleFeatureType type) {
+    if (!this.debugMode) {
+      return null;
+    }
+    FileWriter fileWriter = null;
+    BufferedWriter csvWriter = null;
+    try {
+      saveInfo(layer);
+      String folder = getFolder();
+      String fname = folder + layer.getName().replace('/', '_').replace(':', '_') + ".csv";
+      fileWriter = new FileWriter(fname, false);
+      csvWriter = new BufferedWriter(fileWriter, 8096);
+      for (AttributeDescriptor attributeDescriptor : type.getAttributeDescriptors()) {
+        csvWriter.append("\"");
+        csvWriter.append(attributeDescriptor.getLocalName());
+        csvWriter.append("\";");
+      }
+      csvWriter.append("\"geom\"\n");    
+      return new Writer[] {fileWriter, csvWriter}; 
+    } catch(Exception ex) {
+      IOUtils.closeQuietly(csvWriter);
+      IOUtils.closeQuietly(fileWriter);
+      return null;
+    }
+  }
+  
+  private void addRowToCSV(Writer[] writers, SimpleFeature f, Geometry geom) throws IOException {
+    if (!this.debugMode) {
+      return;
+    }
+    Writer writer = writers[1];
     SimpleFeatureType type = f.getFeatureType();
     for (AttributeDescriptor attributeDescriptor : type.getAttributeDescriptors()) {
       writer.append("\"");
@@ -293,4 +331,17 @@ public class MVTTile {
     writer.append("\"\n");
   }
 
+  private void closeCSV(Writer[] writers) {
+    if (!this.debugMode) {
+      return;
+    }
+    try {
+      writers[0].flush();
+      writers[1].flush();
+      IOUtils.close(writers[0]);
+      IOUtils.close(writers[1]);
+    } catch (IOException ex) {
+      LOGGER.log(Level.INFO, "Can't close debug CSV files", ex);
+    }
+  }
 }

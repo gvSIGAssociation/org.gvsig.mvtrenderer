@@ -35,13 +35,10 @@ import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
 import org.geotools.renderer.lite.StreamingRenderer;
-import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
 
 /**
@@ -69,15 +66,6 @@ public class MVTLayer {
     this.id = id;
     this.features = features;
     this.style = style;
-//    final GeometryFactory geometryFactory = new GeometryFactory();
-//    this.tileExtent = geometryFactory.createPolygon(new Coordinate[]{
-//      new Coordinate(0, 0),
-//      new Coordinate(extent, 0),
-//      new Coordinate(extent, extent),
-//      new Coordinate(0, extent),
-//      new Coordinate(0, 0)
-//    });
-//    this.envelope = ReferencedEnvelope.reference(tileExtent.getEnvelopeInternal());
     this.envelope = envelope;
 
   }
@@ -89,49 +77,57 @@ public class MVTLayer {
    * @param id Identifier of the layer.
    * @param background The polygon covering the tile extent.
    * @param style The GeoTools style to apply.
-   * @param extent
+   * @param env
    */
   public MVTLayer(String id, Polygon background, Style style, Envelope env) {
     this(id, createBackgroundCollection(background), style, env);
   }
-
-  /**
-   * Renders this layer onto the provided Graphics2D context.
-   *
-   * @param g2d The graphics context to draw on.
-   * @param drawingArea The area of the image being drawn (e.g., new
-   * Rectangle(0, 0, width, height)).
-   */
-  public void render(Graphics2D g2d, Rectangle drawingArea) {
-    if (features == null || features.isEmpty() || style == null) {
-      return;
-    }
-    MapContent mapContent = new MapContent();
-    try {
-      FeatureLayer layer = new FeatureLayer(features, style);
-      mapContent.addLayer(layer);
-
-      StreamingRenderer renderer = new StreamingRenderer();
-      renderer.setMapContent(mapContent);
-
-      // Crear los hints de suavizado
-      RenderingHints hints = new RenderingHints(
-              RenderingHints.KEY_ANTIALIASING,
-              RenderingHints.VALUE_ANTIALIAS_ON
-      );
-
-      // También es recomendable activar el suavizado de texto si tienes etiquetas
-      hints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-      // Aplicarlos al renderizador
-      renderer.setJava2DHints(hints);
-
-      renderer.paint(g2d, drawingArea, this.envelope);
-
-    } finally {
-      mapContent.dispose();
-    }
+  
+  public Style getStyle() {
+    return this.style;
   }
+  
+  public SimpleFeatureCollection getFeatures() {
+    return this.features;
+  }
+
+//  /**
+//   * Renders this layer onto the provided Graphics2D context.
+//   *
+//   * @param g2d The graphics context to draw on.
+//   * @param drawingArea The area of the image being drawn (e.g., new
+//   * Rectangle(0, 0, width, height)).
+//   */
+//  public void render(Graphics2D g2d, Rectangle drawingArea) {
+//    if (features == null || features.isEmpty() || style == null) {
+//      return;
+//    }
+//    MapContent mapContent = new MapContent();
+//    try {
+//      FeatureLayer layer = new FeatureLayer(features, style);
+//      mapContent.addLayer(layer);
+//
+//      StreamingRenderer renderer = new StreamingRenderer();
+//      renderer.setMapContent(mapContent);
+//
+//      // Crear los hints de suavizado
+//      RenderingHints hints = new RenderingHints(
+//              RenderingHints.KEY_ANTIALIASING,
+//              RenderingHints.VALUE_ANTIALIAS_ON
+//      );
+//
+//      // También es recomendable activar el suavizado de texto si tienes etiquetas
+//      hints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+//
+//      // Aplicarlos al renderizador
+//      renderer.setJava2DHints(hints);
+//
+//      renderer.paint(g2d, drawingArea, this.envelope);
+//
+//    } finally {
+//      mapContent.dispose();
+//    }
+//  }
 
   private static SimpleFeatureCollection createBackgroundCollection(Polygon background) {
     try {

@@ -25,8 +25,6 @@ package org.gvsig.mvtrenderer.main;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import javax.imageio.ImageIO;
@@ -102,8 +100,8 @@ public class Main {
     for (int y = 12465; y <= 12468; y++) {
       for (int x = 16328; x <= 16337; x++) {
         URL urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/{z}/{y}/{x}.pbf");
+//        URL urlTile = URI.create("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/{z}/{y}/{x}.pbf").toURL();
         MVTTile mvtTile = new MVTTile();
-//        mvtTile.setForcedExtent(512);
         mvtTile.debugMode = false;
         mvtTile.download(urlTile, z, y, x, getOSMTileEnvelope(x, y, z));
         BufferedImage image = mvtTile.render(mvtStyle, 512, 512);

@@ -4,7 +4,7 @@
     <artifactId>org.gvsig.mvtrenderer</artifactId>
     <groupId>org.gvsig</groupId>
     <packaging>pom</packaging>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.2-SNAPSHOT</version>
     <name>${project.artifactId}</name>
     <description>Mapbox vector tile renderer</description>
 
