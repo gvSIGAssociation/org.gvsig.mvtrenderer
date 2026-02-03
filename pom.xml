@@ -37,6 +37,7 @@
     </scm>
     
     <repositories>
+<!--
         <repository>
             <id>gvsig-public-http-repository</id>
             <name>gvSIG maven public HTTP repository</name>
@@ -52,13 +53,14 @@
                 <checksumPolicy>warn</checksumPolicy>
             </snapshots>
         </repository>
+-->
         <repository>
             <id>geotools-repository</id>
             <name>geotools-repository</name>
             <url>https://repo.osgeo.org/repository/geotools-releases/</url>
         </repository>
     </repositories>
-
+<!--
     <distributionManagement>
         <site>
             <id>gvsig-repository</id>
@@ -77,7 +79,7 @@
             <uniqueVersion>false</uniqueVersion>
         </snapshotRepository>
     </distributionManagement>
-        
+        -->
     <developers>
         <developer>
             <id>jjdelcerro</id>

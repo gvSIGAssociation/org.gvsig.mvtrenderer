@@ -27,11 +27,13 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URL;
 import javax.imageio.ImageIO;
 import org.apache.commons.lang3.StringUtils;
 import org.gvsig.mvtrenderer.lib.impl.MVTStyles;
 import org.gvsig.mvtrenderer.lib.impl.MVTTile;
+import org.locationtech.jts.geom.Envelope;
 
 /**
  *
@@ -39,23 +41,57 @@ import org.gvsig.mvtrenderer.lib.impl.MVTTile;
  */
 public class Main {
 
-  public static void main0(String[] args) throws MalformedURLException, IOException {
-    URL urlTile;
-    URL urlStyles = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/resources/styles/root.json");
-//    urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/14/6233/8166.pbf");
-//    urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/14/4825/6155.pbf");
-//    urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/0/0/0.pbf");
+//  public static void main0(String[] args) throws MalformedURLException, IOException {
+//    URL urlTile;
+//    URL urlStyles = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/resources/styles/root.json");
+////    urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/14/6233/8166.pbf");
+////    urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/14/4825/6155.pbf");
+////    urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/0/0/0.pbf");
+//
+//    urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/14/6232/8167.pbf");
+//    MVTStyles mvtStyle = new MVTStyles();
+//    mvtStyle.download(urlStyles);
+//    System.out.println("Descargando tesela...");
+//    MVTTile mvtTile = new MVTTile();
+//    mvtTile.download(urlTile);
+//    BufferedImage image = mvtTile.render(mvtStyle, 512, 512);
+//    ImageIO.write(image, "png", new File("../tmp/prueba.png"));
+//    System.out.println("Required fonts: " + StringUtils.join(mvtStyle.getUsedFontNames(), ","));
+//    System.out.println("Style downloaded and parsed successfully.");
+//  }
 
-    urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/14/6232/8167.pbf");
-    MVTStyles mvtStyle = new MVTStyles();
-    mvtStyle.download(urlStyles);
-    System.out.println("Descargando tesela...");
-    MVTTile mvtTile = new MVTTile();
-    mvtTile.download(urlTile);
-    BufferedImage image = mvtTile.render(mvtStyle, 512, 512);
-    ImageIO.write(image, "png", new File("../tmp/prueba.png"));
-    System.out.println("Required fonts: " + StringUtils.join(mvtStyle.getUsedFontNames(), ","));
-    System.out.println("Style downloaded and parsed successfully.");
+  /**
+   * Calcula el Envelope de un tile de OSM en coordenadas Web Mercator
+   * (EPSG:3857). Las unidades resultantes están en metros.
+   *
+   * @param x Coordenada X del tile
+   * @param y Coordenada Y del tile
+   * @param z Nivel de zoom
+   * @return Envelope en metros [minX, maxX, minY, maxY]
+   */
+  private static Envelope getOSMTileEnvelope(int x, int y, int z) {
+    // La circunferencia de la Tierra en el Ecuador para EPSG:3857
+    // Corresponde a 2 * PI * 6378137 metros
+    double worldSize = 40075016.68557849;
+    double originShift = worldSize / 2.0; // 20037508.34...
+
+    // Tamaño de una tesela en metros para el nivel de zoom actual
+    double numTiles = Math.pow(2, z);
+    double tileSizeMeters = worldSize / numTiles;
+
+    // Cálculo de las coordenadas X (Oeste a Este)
+    // El origen X (0) en metros está en el meridiano de Greenwich. 
+    // Los tiles empiezan en el borde izquierdo (-originShift)
+    double minX = -originShift + (x * tileSizeMeters);
+    double maxX = -originShift + ((x + 1) * tileSizeMeters);
+
+    // Cálculo de las coordenadas Y (Sur a Norte)
+    // En el sistema de tiles de OSM, y=0 es el Norte.
+    // En EPSG:3857, el eje Y positivo va hacia el Norte.
+    double maxY = originShift - (y * tileSizeMeters);
+    double minY = originShift - ((y + 1) * tileSizeMeters);
+
+    return new Envelope(minX, maxX, minY, maxY);
   }
 
   public static void main(String[] args) throws Exception {
@@ -67,9 +103,9 @@ public class Main {
       for (int x = 16328; x <= 16337; x++) {
         URL urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/{z}/{y}/{x}.pbf");
         MVTTile mvtTile = new MVTTile();
-        mvtTile.setForcedExtent(512);
+//        mvtTile.setForcedExtent(512);
         mvtTile.debugMode = false;
-        mvtTile.download(urlTile, z, y, x);
+        mvtTile.download(urlTile, z, y, x, getOSMTileEnvelope(x, y, z));
         BufferedImage image = mvtTile.render(mvtStyle, 512, 512);
         ImageIO.write(image, "png", new File(mvtTile.getFolder() + "tile_" + y + "_" + x + ".png"));
       }

@@ -59,6 +59,7 @@ import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
@@ -78,46 +79,47 @@ public class MVTTile {
   private int tileY;
   private int tileZ;
   private Integer forcedExtent = null;
+  private Envelope envelope;
 
   public static class MVTDataSource {
 
     SimpleFeatureCollection features;
     String name;
-    int tileSize;
+    Envelope envelope;
 
-    public MVTDataSource(SimpleFeatureCollection features, String name, int tileSize) {
+    public MVTDataSource(SimpleFeatureCollection features, String name, Envelope envelope) {
       this.features = features;
       this.name = name;
-      this.tileSize = tileSize;
+      this.envelope = envelope;
     }
 
   }
 
-  public Integer getForcedExtent() {
-    return forcedExtent;
-  }
+//  public Integer getForcedExtent() {
+//    return forcedExtent;
+//  }
+//
+//  public void setForcedExtent(Integer forcedExtent) {
+//    this.forcedExtent = forcedExtent;
+//  }
 
-  public void setForcedExtent(Integer forcedExtent) {
-    this.forcedExtent = forcedExtent;
-  }
-
-  public void download(URL url) throws IOException {
+  public void download(URL url, Envelope envelope) throws IOException {
     try (InputStream is = url.openStream()) {
-      this.download(is);
+      this.download(is, envelope);
     }
   }
 
-  public void download(URL url, int z, int y, int x) throws IOException {
+  public void download(URL url, int z, int y, int x, Envelope envelope) throws IOException {
     this.tileX = x;
     this.tileY = y;
     this.tileZ = z;
     String s = url.toString().replace("{z}", String.valueOf(this.tileZ));
     s = s.replace("{y}", String.valueOf(this.tileY));
     s = s.replace("{x}", String.valueOf(this.tileX));
-    this.download(URI.create(s).toURL());
+    this.download(URI.create(s).toURL(), envelope);
   }
 
-  public void download(InputStream is) throws IOException {
+  public void download(InputStream is, Envelope envelope ) throws IOException {
     final GeometryFactory geometryFactory = new GeometryFactory();
     try (PushbackInputStream pbIs = new PushbackInputStream(is, 2)) {
       // Comprobar "Magic Numbers" de GZIP (0x1f, 0x8b)
@@ -130,23 +132,24 @@ public class MVTTile {
         finalIs = new GZIPInputStream(pbIs);
       }
       JtsMvt mvt = MvtReader.loadMvt(finalIs, geometryFactory, new TagKeyValueMapConverter());
-
+      this.envelope = envelope;
       sourceLayers.clear();
 
       for (JtsLayer layer : mvt.getLayers()) {
         int tileSize = layer.getExtent();
         // If forcedExtent is set, we normalize to that value. 
         // Otherwise we use the native extent from the layer.
-        int targetExtent = (this.forcedExtent != null) ? this.forcedExtent : tileSize;
-        double scale = (double) targetExtent / tileSize;
+//        int targetExtent = (this.forcedExtent != null) ? this.forcedExtent : tileSize;
+        double scaleX = envelope.getWidth() / tileSize;
+        double scaleY = envelope.getHeight()/ tileSize;
 
         // Apply transformation to flip Y axis and scale to targetExtent
         AffineTransformation t = new AffineTransformation();
-        t.scale(scale, -scale);
-        t.translate(0, targetExtent);
+        t.scale(scaleX, -scaleY);
+        t.translate(envelope.getMinX(), envelope.getMaxY());
 
         SimpleFeatureCollection collection = convertToFeatureCollection(layer, t);
-        MVTDataSource miLayer = new MVTDataSource(collection, layer.getName(), targetExtent);
+        MVTDataSource miLayer = new MVTDataSource(collection, layer.getName(), envelope);
         sourceLayers.put(layer.getName(), miLayer);
       }
     }
@@ -159,7 +162,7 @@ public class MVTTile {
     try {
       Rectangle drawingArea = new Rectangle(0, 0, widthInPixels, heightInPixels);
 
-      List<MVTLayer> layersToDraw = mvtStyle.getLayersToDraw(sourceLayers);
+      List<MVTLayer> layersToDraw = mvtStyle.getLayersToDraw(sourceLayers, envelope);
 
       for (MVTLayer layer : layersToDraw) {
         layer.render(g2, drawingArea);

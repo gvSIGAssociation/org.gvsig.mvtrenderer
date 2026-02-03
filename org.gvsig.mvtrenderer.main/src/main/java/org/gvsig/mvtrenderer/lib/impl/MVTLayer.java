@@ -40,6 +40,7 @@ import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
 import org.geotools.renderer.lite.StreamingRenderer;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
 
@@ -54,8 +55,8 @@ public class MVTLayer {
   private final String id;
   private final SimpleFeatureCollection features;
   private final Style style;
-  private Polygon tileExtent;
-  private ReferencedEnvelope envelope;
+//  private Polygon tileExtent;
+  private Envelope envelope;
 
   /**
    * Constructor for data layers.
@@ -64,19 +65,20 @@ public class MVTLayer {
    * @param features Collection of features to render.
    * @param style The GeoTools style to apply.
    */
-  public MVTLayer(String id, SimpleFeatureCollection features, Style style, int extent) {
+  public MVTLayer(String id, SimpleFeatureCollection features, Style style, Envelope envelope) {
     this.id = id;
     this.features = features;
     this.style = style;
-    final GeometryFactory geometryFactory = new GeometryFactory();
-    this.tileExtent = geometryFactory.createPolygon(new Coordinate[]{
-      new Coordinate(0, 0),
-      new Coordinate(extent, 0),
-      new Coordinate(extent, extent),
-      new Coordinate(0, extent),
-      new Coordinate(0, 0)
-    });
-    this.envelope = ReferencedEnvelope.reference(tileExtent.getEnvelopeInternal());
+//    final GeometryFactory geometryFactory = new GeometryFactory();
+//    this.tileExtent = geometryFactory.createPolygon(new Coordinate[]{
+//      new Coordinate(0, 0),
+//      new Coordinate(extent, 0),
+//      new Coordinate(extent, extent),
+//      new Coordinate(0, extent),
+//      new Coordinate(0, 0)
+//    });
+//    this.envelope = ReferencedEnvelope.reference(tileExtent.getEnvelopeInternal());
+    this.envelope = envelope;
 
   }
 
@@ -89,8 +91,8 @@ public class MVTLayer {
    * @param style The GeoTools style to apply.
    * @param extent
    */
-  public MVTLayer(String id, Polygon background, Style style, int extent) {
-    this(id, createBackgroundCollection(background), style, extent);
+  public MVTLayer(String id, Polygon background, Style style, Envelope env) {
+    this(id, createBackgroundCollection(background), style, env);
   }
 
   /**

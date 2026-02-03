@@ -54,6 +54,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
 
 /**
@@ -137,7 +138,7 @@ public class MVTStyles {
    * FeatureCollection).
    * @return Lista ordenada de objetos MVTLayer.
    */
-  public List<MVTLayer> getLayersToDraw(Map<String, MVTDataSource> dataSources) {
+  public List<MVTLayer> getLayersToDraw(Map<String, MVTDataSource> dataSources, Envelope tileEnvelope) {
     if (mbStyle == null) {
       throw new IllegalStateException("Style not loaded. Call download() first.");
     }
@@ -157,14 +158,14 @@ public class MVTStyles {
       if (sourceLayerName == null) {
         // Caso Background: No tiene source-layer asociado.
         // Usamos el polígono de fondo.
-        layersToDraw.add(new MVTLayer(styleLayerId, background, style, BACKGROUND_SIZE));
+        layersToDraw.add(new MVTLayer(styleLayerId, background, style, tileEnvelope));
 
       } else if (dataSources.containsKey(sourceLayerName)) {
         // Caso Capa de Datos: Existe en el estilo y tenemos datos para ella.
         MVTDataSource dataSource = dataSources.get(sourceLayerName);
         SimpleFeatureCollection features = dataSource.features;
         if (!features.isEmpty()) {
-          layersToDraw.add(new MVTLayer(styleLayerId, features, style, dataSource.tileSize));
+          layersToDraw.add(new MVTLayer(styleLayerId, features, style, dataSource.envelope));
         }
       }
       // Si la capa está en el estilo pero no no tenemos capa de datos en 'dataSource', se omite.
