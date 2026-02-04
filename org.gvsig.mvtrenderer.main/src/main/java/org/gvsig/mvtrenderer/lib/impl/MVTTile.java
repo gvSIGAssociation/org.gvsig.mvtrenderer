@@ -112,23 +112,23 @@ public class MVTTile {
 
   }
 
-  public void download(URL url, Envelope envelope) throws IOException {
+  public void download(URL url, Envelope envelope, Map<String, Set<String>> fieldsByLayer) throws IOException {
     try (InputStream is = url.openStream()) {
-      this.download(is, envelope);
+      this.download(is, envelope, fieldsByLayer);
     }
   }
 
-  public void download(URL url, int z, int y, int x, Envelope envelope) throws IOException {
+  public void download(URL url, int z, int y, int x, Envelope envelope, Map<String, Set<String>> fieldsByLayer) throws IOException {
     this.tileX = x;
     this.tileY = y;
     this.tileZ = z;
     String s = url.toString().replace("{z}", String.valueOf(this.tileZ));
     s = s.replace("{y}", String.valueOf(this.tileY));
     s = s.replace("{x}", String.valueOf(this.tileX));
-    this.download(URI.create(s).toURL(), envelope);
+    this.download(URI.create(s).toURL(), envelope, fieldsByLayer);
   }
 
-  public void download(InputStream is, Envelope envelope ) throws IOException {
+  public void download(InputStream is, Envelope envelope, Map<String, Set<String>> fieldsByLayer) throws IOException {
     final GeometryFactory geometryFactory = new GeometryFactory();
     try (PushbackInputStream pbIs = new PushbackInputStream(is, 2)) {
       
@@ -156,7 +156,8 @@ public class MVTTile {
         t.scale(scaleX, -scaleY);
         t.translate(envelope.getMinX(), envelope.getMaxY());
 
-        SimpleFeatureCollection collection = convertToFeatureCollection(layer, t);
+        Set<String> fields = fieldsByLayer.get(layer.getName());
+        SimpleFeatureCollection collection = convertToFeatureCollection(layer, fields, t);
         MVTDataSource theLayer = new MVTDataSource(collection, layer.getName(), envelope);
         
         this.sourceLayers.put(layer.getName(), theLayer);
@@ -237,10 +238,13 @@ public class MVTTile {
     }
   }
 
-  private SimpleFeatureCollection convertToFeatureCollection(JtsLayer layer, AffineTransformation t) {
+  private SimpleFeatureCollection convertToFeatureCollection(JtsLayer layer, Set<String> fieldNames,AffineTransformation t) {
     Writer[] writers = null;
     try {
       Set<String> attributeNames = new HashSet<>();
+      if(fieldNames != null) {
+        attributeNames.addAll(fieldNames);
+      }
       for (Geometry geom : layer.getGeometries()) {
         Object userData = geom.getUserData();
         if (userData instanceof Map) {

@@ -37,6 +37,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.geotools.api.style.FeatureTypeStyle;
 import org.geotools.api.style.Style;
 import org.geotools.api.style.StyleFactory;
@@ -66,9 +68,14 @@ public class MVTStyles {
 
   private static final Logger LOGGER = Logger.getLogger(MVTStyles.class.getName());
 
+  private static final Set<String> EXPLICIT_GETTERS = Set.of("get", "has");
+  private static final Set<String> IMPLICIT_COMPARISONS = Set.of("==", "!=", ">", ">=", "<", "<=", "in", "!in");
+  private static final Set<String> UNARY_OPERATORS = Set.of("downcase", "upcase", "typeof");
+  private static final Set<String> NON_ATTRIBUTE_EXPRESSIONS = Set.of("zoom", "geometry-type", "id", "properties", "feature-state");
+
   private static final int BACKGROUND_SIZE = 4096;
 
-  private MBStyle mbStyle;
+  public MBStyle mbStyle;
   private URL url;
 
   // Caché: ID de capa de estilo -> Objeto Style de GeoTools
@@ -288,4 +295,112 @@ public class MVTStyles {
     }
     return fonts;
   }
+  
+  public Map<String, Set<String>> extractFieldsFromStyles() {
+    Map<String, Set<String>> fieldsByLayer = new HashMap<>();
+    Object layersObj = this.mbStyle.json.get("layers");
+
+    if (layersObj instanceof JSONArray) {
+      JSONArray layers = (JSONArray) layersObj;
+      Pattern pattern = Pattern.compile("\\{([^}]+)\\}");
+
+      for (Object layerObj : layers) {
+        if (layerObj instanceof JSONObject) {
+          JSONObject layer = (JSONObject) layerObj;
+          String sourceLayer = (String) layer.get("source-layer");
+
+          if (sourceLayer != null) {
+            Set<String> layerFields = fieldsByLayer.get(sourceLayer);
+            if (layerFields == null) {
+              layerFields = new HashSet<>();
+              fieldsByLayer.put(sourceLayer, layerFields);
+            }
+            Object filterObj = layer.get("filter");
+            if (filterObj instanceof JSONArray) {
+              findAttributesRecursive(filterObj, layerFields);
+            }
+            JSONObject layout = (JSONObject) layer.get("layout");
+            if (layout != null) {
+              Object textFieldObj = layout.get("text-field");
+              if (textFieldObj instanceof String) {
+                String textField = (String) textFieldObj;
+                Matcher matcher = pattern.matcher(textField);
+
+                while (matcher.find()) {
+                  layerFields.add(matcher.group(1));
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return fieldsByLayer;
+  }
+  
+  private void findAttributesRecursive(Object expression, Set<String> attributes) {
+    if (!(expression instanceof JSONArray)) {
+      return;
+    }
+
+    JSONArray exprArray = (JSONArray) expression;
+    if (exprArray.isEmpty() || !(exprArray.get(0) instanceof String)) {
+      return;
+    }
+
+    String operator = (String) exprArray.get(0);
+
+    if (NON_ATTRIBUTE_EXPRESSIONS.contains(operator)) {
+      return;
+    }
+
+    if (EXPLICIT_GETTERS.contains(operator)) {
+      if (exprArray.size()> 1 && exprArray.get(1) instanceof String) {
+        attributes.add((String) exprArray.get(1));
+      }
+      return;
+    }
+
+    if (IMPLICIT_COMPARISONS.contains(operator)) {
+      String potentialImplicitAttr = null;
+      Set<String> explicitAttrsFound = new HashSet<>();
+
+      // 1. Asumir que el segundo elemento, si es un String, es un atributo implícito.
+      if (exprArray.size() > 1 && exprArray.get(1) instanceof String) {
+        potentialImplicitAttr = (String) exprArray.get(1);
+      }
+
+      // 2. Buscar recursivamente atributos explícitos (con "get") en TODOS los operandos.
+      for (int i = 1; i < exprArray.size(); i++) {
+        findAttributesRecursive(exprArray.get(i), explicitAttrsFound);
+      }
+
+      // 3. Decidir qué atributos añadir.
+      if (explicitAttrsFound.isEmpty()) {
+        // Si NO se encontraron atributos explícitos, la suposición inicial era correcta.
+        if (potentialImplicitAttr != null) {
+          attributes.add(potentialImplicitAttr);
+        }
+      } else {
+        // Si SÍ se encontraron atributos explícitos, estos tienen prioridad.
+        attributes.addAll(explicitAttrsFound);
+      }
+      return;
+    }
+    
+    // Heurística para operadores unarios: ["downcase", "propiedad"]
+    if (UNARY_OPERATORS.contains(operator)) {
+        if (exprArray.size() > 1 && exprArray.get(1) instanceof String) {
+            attributes.add((String) exprArray.get(1));
+        }
+        return;
+    }
+
+    // Comportamiento por defecto para otros operadores (all, any, match, downcase, etc.):
+    // simplemente analizar sus argumentos recursivamente.
+    for (int i = 1; i < exprArray.size(); i++) {
+      findAttributesRecursive(exprArray.get(i), attributes);
+    }
+  }
+  
 }
