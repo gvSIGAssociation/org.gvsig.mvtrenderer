@@ -31,8 +31,8 @@
     <url>https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer</url>
 
     <scm>
-        <connection>scm:git:git@github.com:gvSIGAssociation/org.gvsig.mvtrenderer.git</connection>
-        <developerConnection>scm:git:git@github.com:gvSIGAssociation/org.gvsig.mvtrenderer.git</developerConnection>
+        <connection>scm:git:https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer.git</connection>
+        <developerConnection>scm:git:https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer.git</developerConnection>
         <url>https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer</url>
     </scm>
     
