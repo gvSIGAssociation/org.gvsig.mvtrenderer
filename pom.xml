@@ -4,7 +4,7 @@
     <artifactId>org.gvsig.mvtrenderer</artifactId>
     <groupId>org.gvsig</groupId>
     <packaging>pom</packaging>
-    <version>1.0.3-SNAPSHOT</version>
+    <version>1.0.3</version>
     <name>${project.artifactId}</name>
     <description>Mapbox vector tile renderer</description>
 
@@ -34,7 +34,8 @@
         <connection>scm:git:https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer.git</connection>
         <developerConnection>scm:git:https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer.git</developerConnection>
         <url>https://github.com/gvSIGAssociation/org.gvsig.mvtrenderer</url>
-    </scm>
+      <tag>org.gvsig.mvtrenderer-1.0.3</tag>
+  </scm>
     
     <repositories>
         <repository>
