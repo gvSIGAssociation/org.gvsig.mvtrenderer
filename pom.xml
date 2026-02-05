@@ -37,7 +37,6 @@
     </scm>
     
     <repositories>
-<!--
         <repository>
             <id>gvsig-public-http-repository</id>
             <name>gvSIG maven public HTTP repository</name>
@@ -53,14 +52,12 @@
                 <checksumPolicy>warn</checksumPolicy>
             </snapshots>
         </repository>
--->
         <repository>
             <id>geotools-repository</id>
             <name>geotools-repository</name>
             <url>https://repo.osgeo.org/repository/geotools-releases/</url>
         </repository>
     </repositories>
-<!--
     <distributionManagement>
         <site>
             <id>gvsig-repository</id>
@@ -79,7 +76,6 @@
             <uniqueVersion>false</uniqueVersion>
         </snapshotRepository>
     </distributionManagement>
-        -->
     <developers>
         <developer>
             <id>jjdelcerro</id>
@@ -103,14 +99,12 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- Source: https://mvnrepository.com/artifact/org.geotools/gt-mbstyle -->
             <dependency>
                 <groupId>org.geotools</groupId>
                 <artifactId>gt-mbstyle</artifactId>
                 <version>33.1</version>
             </dependency>
             
-            <!-- Source: https://mvnrepository.com/artifact/org.geotools/gt-main -->
             <dependency>
                 <groupId>org.geotools</groupId>
                 <artifactId>gt-main</artifactId>

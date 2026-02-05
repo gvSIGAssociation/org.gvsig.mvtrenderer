@@ -23,21 +23,16 @@
  */
 package org.gvsig.mvtrenderer.lib.impl;
 
-import java.awt.Graphics2D;
-import java.awt.Rectangle;
-import java.awt.RenderingHints;
 import java.util.Collections;
 import java.util.logging.Logger;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.api.style.Style;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-import org.geotools.map.FeatureLayer;
-import org.geotools.map.MapContent;
-import org.geotools.renderer.lite.StreamingRenderer;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Polygon;
 
@@ -79,8 +74,8 @@ public class MVTLayer {
    * @param style The GeoTools style to apply.
    * @param env
    */
-  public MVTLayer(String id, Polygon background, Style style, Envelope env) {
-    this(id, createBackgroundCollection(background), style, env);
+  public MVTLayer(String id, Polygon background, Style style, Envelope env, CoordinateReferenceSystem tileCrs) {
+    this(id, createBackgroundCollection(background, tileCrs), style, env);
   }
   
   public Style getStyle() {
@@ -91,52 +86,15 @@ public class MVTLayer {
     return this.features;
   }
 
-//  /**
-//   * Renders this layer onto the provided Graphics2D context.
-//   *
-//   * @param g2d The graphics context to draw on.
-//   * @param drawingArea The area of the image being drawn (e.g., new
-//   * Rectangle(0, 0, width, height)).
-//   */
-//  public void render(Graphics2D g2d, Rectangle drawingArea) {
-//    if (features == null || features.isEmpty() || style == null) {
-//      return;
-//    }
-//    MapContent mapContent = new MapContent();
-//    try {
-//      FeatureLayer layer = new FeatureLayer(features, style);
-//      mapContent.addLayer(layer);
-//
-//      StreamingRenderer renderer = new StreamingRenderer();
-//      renderer.setMapContent(mapContent);
-//
-//      // Crear los hints de suavizado
-//      RenderingHints hints = new RenderingHints(
-//              RenderingHints.KEY_ANTIALIASING,
-//              RenderingHints.VALUE_ANTIALIAS_ON
-//      );
-//
-//      // También es recomendable activar el suavizado de texto si tienes etiquetas
-//      hints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-//
-//      // Aplicarlos al renderizador
-//      renderer.setJava2DHints(hints);
-//
-//      renderer.paint(g2d, drawingArea, this.envelope);
-//
-//    } finally {
-//      mapContent.dispose();
-//    }
-//  }
-
-  private static SimpleFeatureCollection createBackgroundCollection(Polygon background) {
+  private static SimpleFeatureCollection createBackgroundCollection(Polygon background, CoordinateReferenceSystem tileCrs) {
     try {
       // Create a simple feature type
       SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
       typeBuilder.setName("background");
       typeBuilder.add("geometry", Polygon.class);
-      // Assuming no specific CRS for raw screen/tile coords, or use EPSG:3857 if known
-      // typeBuilder.setCRS(DefaultGeographicCRS.WGS84); 
+      if(tileCrs != null) {
+        typeBuilder.setCRS(tileCrs); 
+      }
 
       SimpleFeatureType featureType = typeBuilder.buildFeatureType();
 

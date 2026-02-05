@@ -39,6 +39,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.api.style.FeatureTypeStyle;
 import org.geotools.api.style.Style;
 import org.geotools.api.style.StyleFactory;
@@ -78,8 +79,7 @@ public class MVTStyles {
   public MBStyle mbStyle;
   private URL url;
 
-  // Caché: ID de capa de estilo -> Objeto Style de GeoTools
-  private Map<String, Style> cachedStyles = new HashMap<>();
+  private final Map<String, Style> cachedStyles = new HashMap<>();
   private final Polygon background;
   private Collection<String> usedFontNames = Collections.EMPTY_SET;
 
@@ -108,7 +108,6 @@ public class MVTStyles {
     try {
       String jsonContent = readUrl(url);
       MBStyleParser parser = new MBStyleParser();
-      // Parseamos y guardamos el objeto MBStyle.
       this.mbStyle = parser.parse(jsonContent);
 
       // Resolver URL relativa de sprites a absoluta
@@ -141,19 +140,19 @@ public class MVTStyles {
    * Construye y devuelve la lista de capas (MVTLayer) listas para ser pintadas,
    * en el orden correcto (Z-order) definido por el estilo Mapbox.
    *
-   * @param dataSources Mapa de capas de datos disponibles (source-layer ->
-   * FeatureCollection).
+   * @param dataSources capas de datos disponibles
    * @param tileEnvelope
+   * @param tileCRS
    * @return Lista ordenada de objetos MVTLayer.
    */
-  public List<MVTLayer> getLayersToDraw(Map<String, MVTDataSource> dataSources, Envelope tileEnvelope) {
+  public List<MVTLayer> getLayersToDraw(Map<String, MVTDataSource> dataSources, Envelope tileEnvelope, CoordinateReferenceSystem tileCRS) {
     if (mbStyle == null) {
       throw new IllegalStateException("Style not loaded. Call download() first.");
     }
 
     List<MVTLayer> layersToDraw = new ArrayList<>();
 
-    // Recorremos las capas en el orden definido en el estilo.
+    // Recorremos las capas de estilo en el orden definido en los estilos.
     for (MBLayer layer : mbStyle.layers()) {
       String styleLayerId = layer.getId();
       String sourceLayerName = layer.getSourceLayer();
@@ -164,12 +163,12 @@ public class MVTStyles {
       }
 
       if (sourceLayerName == null) {
-        // Caso Background: No tiene source-layer asociado.
+        // No tiene source-layer asociado.
         // Usamos el polígono de fondo.
-        layersToDraw.add(new MVTLayer(styleLayerId, background, style, tileEnvelope));
+        layersToDraw.add(new MVTLayer(styleLayerId, background, style, tileEnvelope, tileCRS));
 
       } else if (dataSources.containsKey(sourceLayerName)) {
-        // Caso Capa de Datos: Existe en el estilo y tenemos datos para ella.
+        // Existe en el estilo y tenemos datos para ella.
         MVTDataSource dataSource = dataSources.get(sourceLayerName);
         SimpleFeatureCollection features = dataSource.features;
         if (!features.isEmpty()) {
@@ -183,8 +182,7 @@ public class MVTStyles {
 
   /**
    * Calcula y cachea el Style de geotools asociado al styleLayerId indicado y
-   * lo devuelve. Implementación Lazy: solo transforma el estilo si no está en
-   * caché.
+   * lo devuelve.
    *
    * @param styleLayerId ID de la capa de estilo (Mapbox layer id).
    * @return El objeto Style de GeoTools listo para renderizar, o null si el ID
@@ -206,7 +204,6 @@ public class MVTStyles {
     }
 
     try {
-      // Calculamos escalas para la transformación (Mapbox zoom -> OGC Scale Denominator)
       Double minScale = null;
       Double maxScale = null;
 
@@ -220,10 +217,9 @@ public class MVTStyles {
         maxScale = MBObjectStops.zoomLevelToScaleDenominator(Math.max(-25d, layer.getMinZoom()));
       }
 
-      // Realizamos la transformación
       List<FeatureTypeStyle> ftsList = layer.transform(mbStyle, minScale, maxScale);
 
-      // Empaquetamos en un Style de OGC
+      // Empaquetamos en un Style de Geotools
       StyleFactory sf = CommonFactoryFinder.getStyleFactory();
       Style geoToolsStyle = sf.createStyle();
 
@@ -231,7 +227,6 @@ public class MVTStyles {
         geoToolsStyle.featureTypeStyles().add(fts);
       }
 
-      // Guardar en caché y retornar
       cachedStyles.put(styleLayerId, geoToolsStyle);
       return geoToolsStyle;
 
@@ -270,16 +265,13 @@ public class MVTStyles {
       JSONObject root = (JSONObject) parser.parse(jsonContents);
       Object layersObj = root.get("layers");
 
-      if (layersObj instanceof JSONArray) {
-        JSONArray layers = (JSONArray) layersObj;
+      if (layersObj instanceof JSONArray layers) {
         for (Object layerObj : layers) {
-          if (layerObj instanceof JSONObject) {
-            JSONObject layer = (JSONObject) layerObj;
+          if (layerObj instanceof JSONObject layer) {
             JSONObject layout = (JSONObject) layer.get("layout");
             if (layout != null) {
               Object textFontObj = layout.get("text-font");
-              if (textFontObj instanceof JSONArray) {
-                JSONArray textFonts = (JSONArray) textFontObj;
+              if (textFontObj instanceof JSONArray textFonts) {
                 for (Object font : textFonts) {
                   if (font instanceof String) {
                     fonts.add((String) font);
@@ -365,31 +357,30 @@ public class MVTStyles {
       String potentialImplicitAttr = null;
       Set<String> explicitAttrsFound = new HashSet<>();
 
-      // 1. Asumir que el segundo elemento, si es un String, es un atributo implícito.
+      // Asumir que el segundo elemento, si es un String, es un atributo implícito.
       if (exprArray.size() > 1 && exprArray.get(1) instanceof String) {
         potentialImplicitAttr = (String) exprArray.get(1);
       }
 
-      // 2. Buscar recursivamente atributos explícitos (con "get") en TODOS los operandos.
+      // Buscar recursivamente atributos explícitos en todos los operandos.
       for (int i = 1; i < exprArray.size(); i++) {
         findAttributesRecursive(exprArray.get(i), explicitAttrsFound);
       }
 
-      // 3. Decidir qué atributos añadir.
+      // Decidir qué atributos añadir.
       if (explicitAttrsFound.isEmpty()) {
-        // Si NO se encontraron atributos explícitos, la suposición inicial era correcta.
+        // Si no se encontraron atributos explícitos, la suposición inicial era correcta.
         if (potentialImplicitAttr != null) {
           attributes.add(potentialImplicitAttr);
         }
       } else {
-        // Si SÍ se encontraron atributos explícitos, estos tienen prioridad.
+        // Si se encontraron atributos explícitos, estos tienen prioridad.
         attributes.addAll(explicitAttrsFound);
       }
       return;
     }
     
-    // Heurística para operadores unarios: ["downcase", "propiedad"]
-    if (UNARY_OPERATORS.contains(operator)) {
+   if (UNARY_OPERATORS.contains(operator)) {
         if (exprArray.size() > 1 && exprArray.get(1) instanceof String) {
             attributes.add((String) exprArray.get(1));
         }

@@ -142,7 +142,6 @@ public class MVTTile {
         finalIs = new GZIPInputStream(pbIs);
       }
       
-    // Cargamos los datos del stream
       JtsMvt mvt = MvtReader.loadMvt(finalIs, geometryFactory, new TagKeyValueMapConverter());
       this.envelope = envelope;
       this.sourceLayers.clear();
@@ -172,7 +171,7 @@ public class MVTTile {
     try {
       Rectangle drawingArea = new Rectangle(0, 0, widthInPixels, heightInPixels);
 
-      List<MVTLayer> layersToDraw = mvtStyle.getLayersToDraw(sourceLayers, envelope);
+      List<MVTLayer> layersToDraw = mvtStyle.getLayersToDraw(sourceLayers, envelope, this.tileCRS);
 
       MapContent mapContent = new MapContent();
       if( this.mapCRS != null ) {
@@ -194,6 +193,11 @@ public class MVTTile {
         FeatureLayer featureLayer = new FeatureLayer(layer.getFeatures(), layer.getStyle());
         mapContent.addLayer(featureLayer);
       }
+
+      // Descomentarizando las siguientes dos lineas dejan de aparecer los errores del renderizado
+//      double scaleDenominator = MBObjectStops.zoomLevelToScaleDenominator((double) this.tileZ);
+//      EnvFunction.setGlobalValue("wms_scale_denominator", scaleDenominator);
+
       renderer.paint(g2, drawingArea, envelope);
       
     } finally {
@@ -201,41 +205,6 @@ public class MVTTile {
     }
 
     return image;
-  }
-
-  public String getFolder() {
-    String s = "../tmp/tiles/tile_" + this.tileZ + "_" + this.tileY + "_" + this.tileX + "/";
-    File f = new File(s);
-    try {
-      f.mkdirs();
-      f.mkdir();
-    } catch (Exception ex) {
-
-    }
-    return s;
-  }
-
-  private void saveInfo(JtsLayer layer) {
-    FileReader reader = null;
-    FileWriter writer = null;
-    try {
-      Properties props = new Properties();
-      String filename = getFolder() + "tile.properties";
-      File file = new File(filename);
-      if (file.exists()) {
-        reader = new FileReader(file);
-        props.load(reader);
-      }
-      props.setProperty(layer.getName() + ".features", String.valueOf(layer.getGeometries().size()));
-      props.setProperty(layer.getName() + ".extent", String.valueOf(layer.getExtent()));
-      writer = new FileWriter(file);
-      props.store(writer, "");
-    } catch (Exception ex) {
-      LOGGER.log(Level.WARNING, "Can't save tile information", ex);
-    } finally {
-      IOUtils.closeQuietly(reader);
-      IOUtils.closeQuietly(writer);
-    }
   }
 
   private SimpleFeatureCollection convertToFeatureCollection(JtsLayer layer, Set<String> fieldNames,AffineTransformation t) {
@@ -255,8 +224,6 @@ public class MVTTile {
       tb.setName(layer.getName());
       tb.add("geometry", Geometry.class); // GeoTools maneja polimorfismo geométrico
       for (String attr : attributeNames) {
-        // Asumimos String por defecto para simplificar, o Object.
-        // GeoTools es estricto con los tipos. Object suele funcionar para evaluación laxa.
         tb.add(attr, Object.class);
       }
       if( this.tileCRS!=null ) {
@@ -292,7 +259,11 @@ public class MVTTile {
       closeCSV(writers);
     }
   }
-
+/* 
+=========================================================
+Los siguientes metodos son solo para debug desde el main   
+=========================================================
+*/
   private Writer[] prepareCSV(JtsLayer layer, SimpleFeatureType type) {
     if (!this.debugMode) {
       return null;
@@ -348,4 +319,40 @@ public class MVTTile {
       LOGGER.log(Level.INFO, "Can't close debug CSV files", ex);
     }
   }
+
+  public String getFolder() {
+    String s = "../tmp/tiles/tile_" + this.tileZ + "_" + this.tileY + "_" + this.tileX + "/";
+    File f = new File(s);
+    try {
+      f.mkdirs();
+      f.mkdir();
+    } catch (Exception ex) {
+
+    }
+    return s;
+  }
+
+  private void saveInfo(JtsLayer layer) {
+    FileReader reader = null;
+    FileWriter writer = null;
+    try {
+      Properties props = new Properties();
+      String filename = getFolder() + "tile.properties";
+      File file = new File(filename);
+      if (file.exists()) {
+        reader = new FileReader(file);
+        props.load(reader);
+      }
+      props.setProperty(layer.getName() + ".features", String.valueOf(layer.getGeometries().size()));
+      props.setProperty(layer.getName() + ".extent", String.valueOf(layer.getExtent()));
+      writer = new FileWriter(file);
+      props.store(writer, "");
+    } catch (Exception ex) {
+      LOGGER.log(Level.WARNING, "Can't save tile information", ex);
+    } finally {
+      IOUtils.closeQuietly(reader);
+      IOUtils.closeQuietly(writer);
+    }
+  }
+
 }
