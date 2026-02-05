@@ -59,10 +59,6 @@
         </repository>
     </repositories>
     <distributionManagement>
-        <site>
-            <id>gvsig-repository</id>
-            <url>dav:https://devel.gvsig.org/sites/${project.artifactId}/${project.version}</url>
-        </site>
         <repository>
             <id>gvsig-repository</id>
             <name>gvSIG maven repository</name>
