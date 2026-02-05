@@ -83,6 +83,8 @@ public class MVTStyles {
   private final Map<String, Style> cachedStyles = new HashMap<>();
   private final Polygon background;
   private Collection<String> usedFontNames = Collections.EMPTY_SET;
+  
+  private Map<String, Set<String>> fieldsByLayer;
 
   /**
    * Initializes a new instance of MVTStyles and creates the background polygon.
@@ -297,23 +299,24 @@ public class MVTStyles {
    * @return A map of source layer names to sets of field names.
    */
   public Map<String, Set<String>> extractFieldsFromStyles() {
-    Map<String, Set<String>> fieldsByLayer = new HashMap<>();
+    if(fieldsByLayer != null) {
+      return fieldsByLayer;
+    }
+    Map<String, Set<String>> theFieldsByLayer = new HashMap<>();
     Object layersObj = this.mbStyle.json.get("layers");
 
-    if (layersObj instanceof JSONArray) {
-      JSONArray layers = (JSONArray) layersObj;
+    if (layersObj instanceof JSONArray layers) {
       Pattern pattern = Pattern.compile("\\{([^}]+)\\}");
 
       for (Object layerObj : layers) {
-        if (layerObj instanceof JSONObject) {
-          JSONObject layer = (JSONObject) layerObj;
+        if (layerObj instanceof JSONObject layer) {
           String sourceLayer = (String) layer.get("source-layer");
 
           if (sourceLayer != null) {
-            Set<String> layerFields = fieldsByLayer.get(sourceLayer);
+            Set<String> layerFields = theFieldsByLayer.get(sourceLayer);
             if (layerFields == null) {
               layerFields = new HashSet<>();
-              fieldsByLayer.put(sourceLayer, layerFields);
+              theFieldsByLayer.put(sourceLayer, layerFields);
             }
             Object filterObj = layer.get("filter");
             if (filterObj instanceof JSONArray) {
@@ -322,8 +325,7 @@ public class MVTStyles {
             JSONObject layout = (JSONObject) layer.get("layout");
             if (layout != null) {
               Object textFieldObj = layout.get("text-field");
-              if (textFieldObj instanceof String) {
-                String textField = (String) textFieldObj;
+              if (textFieldObj instanceof String textField) {
                 Matcher matcher = pattern.matcher(textField);
 
                 while (matcher.find()) {
@@ -335,7 +337,8 @@ public class MVTStyles {
         }
       }
     }
-    return fieldsByLayer;
+    this.fieldsByLayer = theFieldsByLayer;
+    return this.fieldsByLayer;
   }
   
   private void findAttributesRecursive(Object expression, Set<String> attributes) {
