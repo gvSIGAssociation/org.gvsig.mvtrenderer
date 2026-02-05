@@ -70,6 +70,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.util.AffineTransformation;
 
 /**
+ * Represents a Mapbox Vector Tile and provides methods to download, parse, and render it.
  *
  * @author fdiaz
  */
@@ -87,10 +88,19 @@ public class MVTTile {
   private CoordinateReferenceSystem tileCRS;
   private CoordinateReferenceSystem mapCRS;
 
+  /**
+   * Default constructor. Only for test.
+   */
   public MVTTile() {
     
   }
   
+  /**
+   * Constructor with CRS information.
+   *
+   * @param tileCRS The coordinate reference system of the tile.
+   * @param mapCRS The coordinate reference system of the map.
+   */
   public MVTTile(CoordinateReferenceSystem tileCRS, CoordinateReferenceSystem mapCRS) {
     if( tileCRS != null && mapCRS != null ) {
       this.tileCRS = tileCRS;
@@ -98,12 +108,22 @@ public class MVTTile {
     }
   }
   
+  /**
+   * Data structure to hold a collection of features for a specific source layer.
+   */
   public static class MVTDataSource {
 
     SimpleFeatureCollection features;
     String name;
     Envelope envelope;
 
+    /**
+     * Constructs a new MVTDataSource.
+     *
+     * @param features The collection of features.
+     * @param name The name of the source layer.
+     * @param envelope The envelope of the layer.
+     */
     public MVTDataSource(SimpleFeatureCollection features, String name, Envelope envelope) {
       this.features = features;
       this.name = name;
@@ -112,12 +132,31 @@ public class MVTTile {
 
   }
 
+  /**
+   * Downloads and parses a tile from the given URL.
+   *
+   * @param url The URL to download the tile from.
+   * @param envelope The envelope of the tile.
+   * @param fieldsByLayer A map of field names to add for each layer.
+   * @throws IOException If an I/O error occurs.
+   */
   public void download(URL url, Envelope envelope, Map<String, Set<String>> fieldsByLayer) throws IOException {
     try (InputStream is = url.openStream()) {
       this.download(is, envelope, fieldsByLayer);
     }
   }
 
+  /**
+   * Downloads and parses a tile from a template URL by replacing {z}, {x}, and {y} placeholders.
+   *
+   * @param url The template URL.
+   * @param z The zoom level.
+   * @param y The tile Y coordinate.
+   * @param x The tile X coordinate.
+   * @param envelope The envelope of the tile.
+   * @param fieldsByLayer A map of field names to add for each layer.
+   * @throws IOException If an I/O error occurs.
+   */
   public void download(URL url, int z, int y, int x, Envelope envelope, Map<String, Set<String>> fieldsByLayer) throws IOException {
     this.tileX = x;
     this.tileY = y;
@@ -128,11 +167,19 @@ public class MVTTile {
     this.download(URI.create(s).toURL(), envelope, fieldsByLayer);
   }
 
+  /**
+   * Parses a tile from an input stream. Handles GZIP compression automatically.
+   *
+   * @param is The input stream containing the tile data.
+   * @param envelope The envelope of the tile.
+   * @param fieldsByLayer A map of field names to add for each layer.
+   * @throws IOException If an I/O error occurs.
+   */
   public void download(InputStream is, Envelope envelope, Map<String, Set<String>> fieldsByLayer) throws IOException {
     final GeometryFactory geometryFactory = new GeometryFactory();
     try (PushbackInputStream pbIs = new PushbackInputStream(is, 2)) {
       
-      // Comprobar "Magic Numbers" de GZIP (0x1f, 0x8b)
+      // Check for GZIP "Magic Numbers" (0x1f, 0x8b)
       byte[] signature = new byte[2];
       int len = pbIs.read(signature);
       pbIs.unread(signature, 0, len); 
@@ -164,6 +211,14 @@ public class MVTTile {
     }
   }
 
+  /**
+   * Renders the tile to a BufferedImage using the provided style.
+   *
+   * @param mvtStyle The MVT style definition.
+   * @param widthInPixels The width of the output image in pixels.
+   * @param heightInPixels The height of the output image in pixels.
+   * @return A BufferedImage containing the rendered tile.
+   */
   public BufferedImage render(MVTStyles mvtStyle, int widthInPixels, int heightInPixels) {
     BufferedImage image = new BufferedImage(widthInPixels, heightInPixels, BufferedImage.TYPE_INT_ARGB);
     Graphics2D g2 = image.createGraphics();
@@ -179,14 +234,14 @@ public class MVTTile {
       }
       StreamingRenderer renderer = new StreamingRenderer();
       renderer.setMapContent(mapContent);
-      // Crear los hints de suavizado
+      // Create smoothing hints
       RenderingHints hints = new RenderingHints(
               RenderingHints.KEY_ANTIALIASING,
               RenderingHints.VALUE_ANTIALIAS_ON
       );
-      // También es recomendable activar el suavizado de texto si tienes etiquetas
+      // Also recommended to enable text smoothing if labels are present
       hints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-      // Aplicarlos al renderizador
+      // Apply hints to the renderer
       renderer.setJava2DHints(hints);
 
       for (MVTLayer layer : layersToDraw) {
@@ -194,9 +249,9 @@ public class MVTTile {
         mapContent.addLayer(featureLayer);
       }
 
-      // Descomentarizando las siguientes dos lineas dejan de aparecer los errores del renderizado
-//      double scaleDenominator = MBObjectStops.zoomLevelToScaleDenominator((double) this.tileZ);
-//      EnvFunction.setGlobalValue("wms_scale_denominator", scaleDenominator);
+      // Uncommenting the following two lines prevents rendering errors
+//      double scaleDenominator = org.geotools.mbstyle.parse.MBObjectStops.zoomLevelToScaleDenominator((double) this.tileZ);
+//      org.geotools.filter.function.EnvFunction.setGlobalValue("wms_scale_denominator", scaleDenominator);
 
       renderer.paint(g2, drawingArea, envelope);
       
@@ -222,7 +277,7 @@ public class MVTTile {
       }
       SimpleFeatureTypeBuilder tb = new SimpleFeatureTypeBuilder();
       tb.setName(layer.getName());
-      tb.add("geometry", Geometry.class); // GeoTools maneja polimorfismo geométrico
+      tb.add("geometry", Geometry.class); // GeoTools handles geometric polymorphism
       for (String attr : attributeNames) {
         tb.add(attr, Object.class);
       }
@@ -259,11 +314,12 @@ public class MVTTile {
       closeCSV(writers);
     }
   }
-/* 
-=========================================================
-Los siguientes metodos son solo para debug desde el main   
-=========================================================
-*/
+
+  /* 
+  =========================================================
+  The following methods are only for debugging from main   
+  =========================================================
+  */
   private Writer[] prepareCSV(JtsLayer layer, SimpleFeatureType type) {
     if (!this.debugMode) {
       return null;
@@ -320,6 +376,12 @@ Los siguientes metodos son solo para debug desde el main
     }
   }
 
+  /**
+   * Returns the folder path where tile data is stored. Creates the folder if it doesn't exist.
+   * Only for test (see main).
+   *
+   * @return The folder path string.
+   */
   public String getFolder() {
     String s = "../tmp/tiles/tile_" + this.tileZ + "_" + this.tileY + "_" + this.tileX + "/";
     File f = new File(s);

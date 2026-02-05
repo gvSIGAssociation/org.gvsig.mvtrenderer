@@ -61,6 +61,7 @@ import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
 
 /**
+ * Manages Mapbox Vector Tile styles and their conversion to GeoTools styles.
  *
  * @author fdiaz
  */
@@ -83,6 +84,9 @@ public class MVTStyles {
   private final Polygon background;
   private Collection<String> usedFontNames = Collections.EMPTY_SET;
 
+  /**
+   * Initializes a new instance of MVTStyles and creates the background polygon.
+   */
   public MVTStyles() {
     final GeometryFactory geometryFactory = new GeometryFactory();
     this.background = geometryFactory.createPolygon(new Coordinate[]{
@@ -96,12 +100,11 @@ public class MVTStyles {
   }
 
   /**
-   * Descarga el json de estilos y lo parsea con MBStyleParser para comprobar
-   * que es correcto. Almacena el resultado en memoria (MBStyle) para su uso
-   * posterior.
+   * Downloads the style JSON and parses it with MBStyleParser to verify
+   * correctness. Stores the result in memory (MBStyle) for later use.
    *
-   * @param url URL del fichero style.json
-   * @throws IOException Si hay error de red o de parseo.
+   * @param url The style.json file URL.
+   * @throws IOException If there is a network or parsing error.
    */
   public void download(URL url) throws IOException {
     this.url = url;
@@ -110,7 +113,7 @@ public class MVTStyles {
       MBStyleParser parser = new MBStyleParser();
       this.mbStyle = parser.parse(jsonContent);
 
-      // Resolver URL relativa de sprites a absoluta
+      // Resolve relative sprite URL to absolute
       String spritePath = (String) this.mbStyle.json.get("sprite");
       if (spritePath != null && !spritePath.startsWith("http")) {
         URL absoluteSpriteUrl = new URL(url, spritePath);
@@ -118,7 +121,7 @@ public class MVTStyles {
         LOGGER.log(Level.INFO, "Resolved sprite URL to: {0}", absoluteSpriteUrl);
       }
 
-      // Resolver URL relativa de glyphs a absoluta
+      // Resolve relative glyphs URL to absolute
       String glyphsPath = (String) this.mbStyle.json.get("glyphs");
       if (glyphsPath != null && !glyphsPath.startsWith("http")) {
         URL absoluteGlyphsUrl = new URL(url, glyphsPath);
@@ -137,13 +140,13 @@ public class MVTStyles {
   }
 
   /**
-   * Construye y devuelve la lista de capas (MVTLayer) listas para ser pintadas,
-   * en el orden correcto (Z-order) definido por el estilo Mapbox.
+   * Builds and returns the list of layers (MVTLayer) ready to be painted,
+   * in the correct order (Z-order) defined by the Mapbox style.
    *
-   * @param dataSources capas de datos disponibles
-   * @param tileEnvelope
-   * @param tileCRS
-   * @return Lista ordenada de objetos MVTLayer.
+   * @param dataSources Map of available data layers.
+   * @param tileEnvelope The envelope of the tile.
+   * @param tileCRS The coordinate reference system of the tile.
+   * @return Ordered list of MVTLayer objects.
    */
   public List<MVTLayer> getLayersToDraw(Map<String, MVTDataSource> dataSources, Envelope tileEnvelope, CoordinateReferenceSystem tileCRS) {
     if (mbStyle == null) {
@@ -152,7 +155,7 @@ public class MVTStyles {
 
     List<MVTLayer> layersToDraw = new ArrayList<>();
 
-    // Recorremos las capas de estilo en el orden definido en los estilos.
+    // Iterate through the style layers in the order defined in the style.
     for (MBLayer layer : mbStyle.layers()) {
       String styleLayerId = layer.getId();
       String sourceLayerName = layer.getSourceLayer();
@@ -163,30 +166,30 @@ public class MVTStyles {
       }
 
       if (sourceLayerName == null) {
-        // No tiene source-layer asociado.
-        // Usamos el polígono de fondo.
+        // No associated source-layer.
+        // Use the background polygon.
         layersToDraw.add(new MVTLayer(styleLayerId, background, style, tileEnvelope, tileCRS));
 
       } else if (dataSources.containsKey(sourceLayerName)) {
-        // Existe en el estilo y tenemos datos para ella.
+        // Exists in the style and we have data for it.
         MVTDataSource dataSource = dataSources.get(sourceLayerName);
         SimpleFeatureCollection features = dataSource.features;
         if (!features.isEmpty()) {
           layersToDraw.add(new MVTLayer(styleLayerId, features, style, dataSource.envelope));
         }
       }
-      // Si la capa está en el estilo pero no no tenemos capa de datos en 'dataSource', se omite.
+      // If the layer is in the style but we don't have a data layer in 'dataSource', it is omitted.
     }
     return layersToDraw;
   }
 
   /**
-   * Calcula y cachea el Style de geotools asociado al styleLayerId indicado y
-   * lo devuelve.
+   * Calculates and caches the GeoTools Style associated with the indicated
+   * styleLayerId and returns it.
    *
-   * @param styleLayerId ID de la capa de estilo (Mapbox layer id).
-   * @return El objeto Style de GeoTools listo para renderizar, o null si el ID
-   * no existe.
+   * @param styleLayerId The style layer ID (Mapbox layer id).
+   * @return The GeoTools Style object ready for rendering, or null if the ID
+   * doesn't exist.
    */
   public Style getStyle(String styleLayerId) {
     if (mbStyle == null) {
@@ -207,19 +210,19 @@ public class MVTStyles {
       Double minScale = null;
       Double maxScale = null;
 
-      // El zoom máximo define la escala mínima (mayor detalle)
+      // Maximum zoom defines the minimum scale (more detail)
       if (layer.getMaxZoom() != Integer.MAX_VALUE) {
         minScale = MBObjectStops.zoomLevelToScaleDenominator(Math.min(25d, layer.getMaxZoom()));
       }
 
-      // El zoom mínimo define la escala máxima (menor detalle)
+      // Minimum zoom defines the maximum scale (less detail)
       if (layer.getMinZoom() != Integer.MIN_VALUE) {
         maxScale = MBObjectStops.zoomLevelToScaleDenominator(Math.max(-25d, layer.getMinZoom()));
       }
 
       List<FeatureTypeStyle> ftsList = layer.transform(mbStyle, minScale, maxScale);
 
-      // Empaquetamos en un Style de Geotools
+      // Package in an OGC Style
       StyleFactory sf = CommonFactoryFinder.getStyleFactory();
       Style geoToolsStyle = sf.createStyle();
 
@@ -243,20 +246,20 @@ public class MVTStyles {
   }
 
   /**
-   * Devuelve la coleccion de nombres de fuentes utilizados en el estilo.
+   * Returns the collection of font names used in the style.
    *
-   * @return Coleccion de nombres de fuentes.
+   * @return Collection of font names.
    */
   public Collection<String> getUsedFontNames() {
     return Collections.unmodifiableCollection(usedFontNames);
   }
 
   /**
-   * Extrae de forma recursiva todos los nombres de fuentes definidos en el
-   * atributo "text-font" del JSON de estilos.
+   * Recursively extracts all font names defined in the "text-font" attribute
+   * of the style JSON.
    *
-   * @param jsonContents Contenido del JSON de estilos.
-   * @return Conjunto de nombres de fuentes únicos encontrados.
+   * @param jsonContents The content of the style JSON.
+   * @return Set of unique font names found.
    */
   private Collection<String> getFontNames(String jsonContents) {
     Set<String> fonts = new HashSet<>();
@@ -287,7 +290,12 @@ public class MVTStyles {
     }
     return fonts;
   }
-  
+
+  /**
+   * Extracts the field names used in the style layers for each source layer.
+   *
+   * @return A map of source layer names to sets of field names.
+   */
   public Map<String, Set<String>> extractFieldsFromStyles() {
     Map<String, Set<String>> fieldsByLayer = new HashMap<>();
     Object layersObj = this.mbStyle.json.get("layers");

@@ -47,7 +47,6 @@ public class MVTLayer {
   private final String id;
   private final SimpleFeatureCollection features;
   private final Style style;
-//  private Polygon tileExtent;
   private Envelope envelope;
 
   /**
@@ -66,22 +65,33 @@ public class MVTLayer {
   }
 
   /**
-   * Constructor for background layers (no source data).Creates a synthetic
+   * Constructor for background layers (no source data). Creates a synthetic
    * feature collection containing the background polygon.
    *
    * @param id Identifier of the layer.
    * @param background The polygon covering the tile extent.
    * @param style The GeoTools style to apply.
-   * @param env
+   * @param env The envelope of the layer.
+   * @param tileCrs The coordinate reference system of the tile.
    */
   public MVTLayer(String id, Polygon background, Style style, Envelope env, CoordinateReferenceSystem tileCrs) {
     this(id, createBackgroundCollection(background, tileCrs), style, env);
   }
   
+  /**
+   * Returns the GeoTools style associated with this layer.
+   *
+   * @return The Style object.
+   */
   public Style getStyle() {
     return this.style;
   }
   
+  /**
+   * Returns the collection of features associated with this layer.
+   *
+   * @return The SimpleFeatureCollection.
+   */
   public SimpleFeatureCollection getFeatures() {
     return this.features;
   }
@@ -109,6 +119,11 @@ public class MVTLayer {
     }
   }
 
+  /**
+   * Returns the identifier of this layer.
+   *
+   * @return The layer ID.
+   */
   public String getId() {
     return id;
   }
