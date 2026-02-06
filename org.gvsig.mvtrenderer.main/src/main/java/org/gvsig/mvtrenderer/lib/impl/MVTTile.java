@@ -245,7 +245,7 @@ public class MVTTile {
       renderer.setJava2DHints(hints);
 
       for (MVTLayer layer : layersToDraw) {
-        FeatureLayer featureLayer = new FeatureLayer(layer.getFeatures(), layer.getStyle());
+        FeatureLayer featureLayer = new FeatureLayer(layer.getFeatures(), layer.getStyle(), layer.getId());
         mapContent.addLayer(featureLayer);
       }
 

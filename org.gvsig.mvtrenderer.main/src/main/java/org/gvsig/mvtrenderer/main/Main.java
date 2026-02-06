@@ -102,7 +102,8 @@ public class Main {
   }
 
   public static void main(String[] args) throws Exception {
-    URL urlStyles = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/resources/styles/root.json");
+//    URL urlStyles = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/resources/styles/root.json");
+    URL urlStyles = new URL("https://icvficherosweb.icv.gva.es/00/geovisorgva/vt_estilos/Basico_ICV.json");
     MVTStyles mvtStyle = new MVTStyles();
     mvtStyle.download(urlStyles);
     int z = 15;

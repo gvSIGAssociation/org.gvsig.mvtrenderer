@@ -39,6 +39,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.lang3.StringUtils;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.api.style.FeatureTypeStyle;
 import org.geotools.api.style.Style;
@@ -130,7 +131,7 @@ public class MVTStyles {
         this.mbStyle.json.put("glyphs", absoluteGlyphsUrl.toString());
         LOGGER.log(Level.INFO, "Resolved glyphs URL to: {0}", absoluteGlyphsUrl);
       }
-
+      this.fixTextPadding();
       this.cachedStyles.clear();
       this.usedFontNames = getFontNames(jsonContent);
 
@@ -161,6 +162,11 @@ public class MVTStyles {
     for (MBLayer layer : mbStyle.layers()) {
       String styleLayerId = layer.getId();
       String sourceLayerName = layer.getSourceLayer();
+      JSONObject layout = layer.getLayout();
+      if(layout!=null && layout.containsKey("visibility") && StringUtils.equalsIgnoreCase("none",(String)layout.get("visibility"))) {
+        continue;
+      }
+      
       Style style = getStyle(styleLayerId);
 
       if (style == null) {
@@ -293,6 +299,28 @@ public class MVTStyles {
     return fonts;
   }
 
+  public void fixTextPadding() {
+    try {
+      Object layersObj = this.mbStyle.json.get("layers");
+      if (layersObj instanceof JSONArray layers) {
+        for (Object layerObj : layers) {
+          if (layerObj instanceof JSONObject layer) {
+            JSONObject layout = (JSONObject) layer.get("layout");
+            if (layout != null) {
+              Object textPaddingObj = layout.get("text-padding");
+              if (textPaddingObj != null && !(textPaddingObj instanceof Number)) {
+                LOGGER.log(Level.WARNING, "'text-padding' in layer " + layer.get("id") + " malformed");
+                layout.remove("text-padding");
+              }
+            }
+          }
+        }
+      }
+    } catch (Exception ex) {
+      LOGGER.log(Level.WARNING, "Can't fix text-padding", ex);
+    }
+  }
+  
   /**
    * Extracts the field names used in the style layers for each source layer.
    *
