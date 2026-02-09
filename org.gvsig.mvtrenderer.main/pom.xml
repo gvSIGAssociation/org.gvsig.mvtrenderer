@@ -7,7 +7,7 @@
 	<parent>
 		<groupId>org.gvsig</groupId>
 		<artifactId>org.gvsig.mvtrenderer</artifactId>
-		<version>1.0.5-SNAPSHOT</version>
+		<version>1.0.5</version>
 	</parent>
 	
 	<dependencies>
