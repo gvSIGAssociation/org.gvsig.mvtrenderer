@@ -23,10 +23,13 @@
  */
 package org.gvsig.mvtrenderer.lib.impl;
 
+import com.google.common.collect.Multimap;
 import io.github.sebasbaumh.mapbox.vectortile.adapt.jts.MvtReader;
 import io.github.sebasbaumh.mapbox.vectortile.adapt.jts.TagKeyValueMapConverter;
 import io.github.sebasbaumh.mapbox.vectortile.adapt.jts.model.JtsLayer;
 import io.github.sebasbaumh.mapbox.vectortile.adapt.jts.model.JtsMvt;
+import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
@@ -42,6 +45,7 @@ import java.io.Writer;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -61,6 +65,7 @@ import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.filter.function.EnvFunction;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
 import org.geotools.renderer.lite.StreamingRenderer;
@@ -78,7 +83,7 @@ public class MVTTile {
 
   private static final Logger LOGGER = Logger.getLogger(MVTTile.class.getName());
 
-  private Map<String, MVTDataSource> sourceLayers = new HashMap<>();
+  private final Map<String, MVTDataSource> sourceLayers = new HashMap<>();
   public boolean debugMode = false;
 
   private int tileX;
@@ -87,12 +92,19 @@ public class MVTTile {
   private Envelope envelope;
   private CoordinateReferenceSystem tileCRS;
   private CoordinateReferenceSystem mapCRS;
+  private boolean enableTextPartials;
+  private boolean assignScaleDenominator;
+  private Double textMaxSizeLimit;
+  private boolean showTileLimits;
 
   /**
    * Default constructor. Only for test.
    */
   public MVTTile() {
-    
+    enableTextPartials = false;
+    assignScaleDenominator = true;
+    textMaxSizeLimit = null;
+    showTileLimits = false;
   }
   
   /**
@@ -102,6 +114,7 @@ public class MVTTile {
    * @param mapCRS The coordinate reference system of the map.
    */
   public MVTTile(CoordinateReferenceSystem tileCRS, CoordinateReferenceSystem mapCRS) {
+    this();
     if( tileCRS != null && mapCRS != null ) {
       this.tileCRS = tileCRS;
       this.mapCRS = mapCRS;
@@ -132,6 +145,53 @@ public class MVTTile {
 
   }
 
+  public void setEnableTextPartials(boolean enableTextPartials) {
+    this.enableTextPartials = enableTextPartials;
+  }
+
+  public boolean isEnableTextPartials() {
+    return enableTextPartials;
+  }
+
+  public void setAssignScaleDenominator(boolean assignScaleDenominator) {
+    this.assignScaleDenominator = assignScaleDenominator;
+  }
+
+  public boolean isAssignScaleDenominator() {
+    return assignScaleDenominator;
+  }
+
+  public void setTextMaxSizeLimit(Double textMaxSizeLimit) {
+    this.textMaxSizeLimit = textMaxSizeLimit;
+  }
+
+  public Double getTextMaxSizeLimit() {
+    return textMaxSizeLimit;
+  }
+  
+  public void setParams(Map<String, String> params) {
+    if(params == null || params.isEmpty()) {
+      return;
+    } 
+    String x = params.get("textMaxSizeLimit");
+    if(x != null) {
+      this.textMaxSizeLimit = Double.valueOf(x);
+    }
+    x = params.get("enableTextPartials");
+    if(x != null) {
+      this.enableTextPartials = Boolean.parseBoolean(x);
+    }
+    x = params.get("assignScaleDenominator");
+    if(x != null) {
+      this.assignScaleDenominator = Boolean.parseBoolean(x);
+    }
+    x = params.get("showTileLimits");
+    if(x != null) {
+      this.showTileLimits = Boolean.parseBoolean(x);
+    }
+  }
+
+  
   /**
    * Downloads and parses a tile from the given URL.
    *
@@ -223,12 +283,14 @@ public class MVTTile {
     BufferedImage image = new BufferedImage(widthInPixels, heightInPixels, BufferedImage.TYPE_INT_ARGB);
     Graphics2D g2 = image.createGraphics();
 
+    Object previousWmsScaleDenominator = null;
+    boolean hasWmsScaleDenominator = false;
+    MapContent mapContent = null;
     try {
       Rectangle drawingArea = new Rectangle(0, 0, widthInPixels, heightInPixels);
 
-      List<MVTLayer> layersToDraw = mvtStyle.getLayersToDraw(sourceLayers, envelope, this.tileCRS);
-
-      MapContent mapContent = new MapContent();
+      List<MVTLayer> layersToDraw = mvtStyle.getLayersToDraw(sourceLayers, envelope, this.tileCRS, this.enableTextPartials, this.textMaxSizeLimit);
+      mapContent = new MapContent();
       if( this.mapCRS != null ) {
         mapContent.getViewport().setCoordinateReferenceSystem(this.mapCRS);
       }
@@ -241,22 +303,47 @@ public class MVTTile {
       );
       // Also recommended to enable text smoothing if labels are present
       hints.put(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
       // Apply hints to the renderer
       renderer.setJava2DHints(hints);
 
       for (MVTLayer layer : layersToDraw) {
-        FeatureLayer featureLayer = new FeatureLayer(layer.getFeatures(), layer.getStyle(), layer.getId());
-        mapContent.addLayer(featureLayer);
+          FeatureLayer featureLayer = new FeatureLayer(layer.getFeatures(), layer.getStyle(), layer.getId());
+          mapContent.addLayer(featureLayer);
       }
 
-      // Uncommenting the following two lines prevents rendering errors
-//      double scaleDenominator = org.geotools.mbstyle.parse.MBObjectStops.zoomLevelToScaleDenominator((double) this.tileZ);
-//      org.geotools.filter.function.EnvFunction.setGlobalValue("wms_scale_denominator", scaleDenominator);
+      Map<String, Object> envLocalValues = EnvFunction.getLocalValues();
+      previousWmsScaleDenominator = envLocalValues.get("wms_scale_denominator");
+      hasWmsScaleDenominator = envLocalValues.containsKey("wms_scale_denominator");
+
+      if(this.isAssignScaleDenominator()) {
+        
+        double scaleDenominator = org.geotools.mbstyle.parse.MBObjectStops.zoomLevelToScaleDenominator((double) this.tileZ);
+        EnvFunction.setLocalValue("wms_scale_denominator", scaleDenominator);
+      }
 
       renderer.paint(g2, drawingArea, envelope);
       
+      if(this.showTileLimits) {
+        g2.setColor(Color.red);
+        BasicStroke stroke = new BasicStroke(1);
+        g2.setStroke(stroke);
+        g2.drawRect(0, 0, widthInPixels-1, heightInPixels-1);
+      }
+      
     } finally {
+      if(this.isAssignScaleDenominator()) {
+        if(hasWmsScaleDenominator) {
+          EnvFunction.setLocalValue("wms_scale_denominator", previousWmsScaleDenominator);
+        } else {
+          EnvFunction.removeLocalValue("wms_scale_denominator");
+
+        }
+      }
       g2.dispose();
+      if(mapContent != null) {
+        mapContent.dispose();
+      }
     }
 
     return image;
@@ -416,5 +503,5 @@ public class MVTTile {
       IOUtils.closeQuietly(writer);
     }
   }
-
+ 
 }

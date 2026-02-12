@@ -23,17 +23,20 @@
  */
 package org.gvsig.mvtrenderer.lib.impl;
 
+import java.awt.GraphicsEnvironment;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,6 +47,8 @@ import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.api.style.FeatureTypeStyle;
 import org.geotools.api.style.Style;
 import org.geotools.api.style.StyleFactory;
+import org.geotools.api.style.Symbolizer;
+import org.geotools.api.style.TextSymbolizer;
 import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.mbstyle.MBStyle;
 import org.geotools.mbstyle.layer.MBLayer;
@@ -134,6 +139,7 @@ public class MVTStyles {
       this.fixTextPadding();
       this.cachedStyles.clear();
       this.usedFontNames = getFontNames(jsonContent);
+      this.fixFontNames();
 
     } catch (ParseException ex) {
       throw new IOException("Error parsing JSON content from " + url, ex);
@@ -151,10 +157,12 @@ public class MVTStyles {
    * @param tileCRS The coordinate reference system of the tile.
    * @return Ordered list of MVTLayer objects.
    */
-  public List<MVTLayer> getLayersToDraw(Map<String, MVTDataSource> dataSources, Envelope tileEnvelope, CoordinateReferenceSystem tileCRS) {
+  public List<MVTLayer> getLayersToDraw(Map<String, MVTDataSource> dataSources, Envelope tileEnvelope, CoordinateReferenceSystem tileCRS, boolean enableTextPartials, Double textMaxSizeLimit) {
     if (mbStyle == null) {
       throw new IllegalStateException("Style not loaded. Call download() first.");
     }
+
+    this.fixTextMaxSize(textMaxSizeLimit);
 
     List<MVTLayer> layersToDraw = new ArrayList<>();
 
@@ -167,7 +175,7 @@ public class MVTStyles {
         continue;
       }
       
-      Style style = getStyle(styleLayerId);
+      Style style = getStyle(styleLayerId, enableTextPartials);
 
       if (style == null) {
         continue;
@@ -199,7 +207,7 @@ public class MVTStyles {
    * @return The GeoTools Style object ready for rendering, or null if the ID
    * doesn't exist.
    */
-  public Style getStyle(String styleLayerId) {
+  public Style getStyle(String styleLayerId, boolean enableTextPartials) {
     if (mbStyle == null) {
       throw new IllegalStateException("Style not loaded. Call download() first.");
     }
@@ -233,8 +241,16 @@ public class MVTStyles {
       // Package in an OGC Style
       StyleFactory sf = CommonFactoryFinder.getStyleFactory();
       Style geoToolsStyle = sf.createStyle();
-
+      
       for (FeatureTypeStyle fts : ftsList) {
+        if (enableTextPartials) {
+          if (fts.rules() != null && fts.rules().size() == 1) {
+            List<Symbolizer> symbolizers = fts.rules().get(0).symbolizers();
+            if (symbolizers != null && symbolizers.size() == 1 && symbolizers.get(0) instanceof TextSymbolizer) {
+              symbolizers.get(0).getOptions().put("partials", "true");
+            }
+          }
+        }
         geoToolsStyle.featureTypeStyles().add(fts);
       }
 
@@ -432,5 +448,100 @@ public class MVTStyles {
       findAttributesRecursive(exprArray.get(i), attributes);
     }
   }
+
+  private void fixFontNames() {
+    String[] ss = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+    List<String> families = Arrays.asList(ss);
+    JSONArray layersObj = (JSONArray) this.mbStyle.json.get("layers");
+
+    try {
+      for (Object layerObj : layersObj) {
+        if (layerObj instanceof JSONObject layer) {
+          JSONObject layout = (JSONObject) layer.get("layout");
+          if (layout != null) {
+            Object textFontObj = layout.get("text-font");
+            if (textFontObj instanceof JSONArray textFonts) {
+              for (Object font : textFonts) {
+                if (font instanceof String) {
+                  if(!families.contains((String)font)) {
+                    String translatedFont = this.getTranslatedFont((String) font);
+                    JSONArray textFontArray = new JSONArray();
+                    textFontArray.add(translatedFont);
+                    layout.put("text-font",textFontArray);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (Exception e) {
+      LOGGER.log(Level.SEVERE, "Error extracting font names from style", e);
+    }
+  }
+  
+  private String getTranslatedFont(String fontName) {
+    String[] ss = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+    List<String> families = Arrays.asList(ss);
+    String translatedFontName = null;
+    for (String family : families) {
+      List<String> x = Arrays.asList(StringUtils.split(family, ' '));
+      if(x.contains("Noto")) {
+        translatedFontName = "Noto";
+        break;
+      }
+      if(x.contains("DejaVu")) {
+        translatedFontName = "DejaVu";
+      }
+      if(x.contains("Liberation") && (translatedFontName == null || !translatedFontName.equals("DejaVu"))) {
+        translatedFontName = "Liberation";
+      }
+    }
+    if(translatedFontName == null) {
+      return fontName;
+    }
+    List<String> x = Arrays.asList(StringUtils.split(fontName.toLowerCase(), ' '));
+    if(x.contains("bold")) {
+      return translatedFontName +" Sans Bold";
+    }
+    if(x.contains("italic")) {
+      return translatedFontName +" Sans Italic";
+    }
+
+    if(x.contains("regular")) {
+      return translatedFontName +" Sans Regular";
+    }
+    return translatedFontName + " Sans";
+    
+  }
+  
+  
+  private void fixTextMaxSize(Double textMaxSizeLimit ){
+    if(textMaxSizeLimit == null) {
+      return;
+    }
+    JSONArray layersObj = (JSONArray) this.mbStyle.json.get("layers");
+
+    try {
+      for (Object layerObj : layersObj) {
+        if (layerObj instanceof JSONObject layer) {
+          JSONObject layout = (JSONObject) layer.get("layout");
+          if (layout != null) {
+            Object textSize = layout.get("text-size");
+            if(!(textSize instanceof JSONArray) && !(textSize instanceof JSONObject)) {
+              //MBStyle library accept only "text-max-width" for literal values of "text-size"
+              Object symbolPlacementObj = layout.get("symbol-placement");
+              if(symbolPlacementObj == null || symbolPlacementObj.toString().trim().equals("point")) {
+                layout.put("text-max-width", textMaxSizeLimit);
+              }
+            }
+          }
+        }
+      }
+    } catch (Exception e) {
+      LOGGER.log(Level.SEVERE, "Error extracting font names from style", e);
+    }
+  }
+  
   
 }

@@ -23,23 +23,17 @@
  */
 package org.gvsig.mvtrenderer.main;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import org.apache.commons.lang3.StringUtils;
-import org.geotools.mbstyle.MBStyle;
-import org.geotools.referencing.CRS;
 import org.gvsig.mvtrenderer.lib.impl.MVTStyles;
 import org.gvsig.mvtrenderer.lib.impl.MVTTile;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
 import org.locationtech.jts.geom.Envelope;
 
 /**
@@ -102,16 +96,24 @@ public class Main {
   }
 
   public static void main(String[] args) throws Exception {
-//    URL urlStyles = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/resources/styles/root.json");
-    URL urlStyles = new URL("https://icvficherosweb.icv.gva.es/00/geovisorgva/vt_estilos/Basico_ICV.json");
+    URL urlStyles = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/resources/styles/root.json");
+//    URL urlStyles = new URL("https://icvficherosweb.icv.gva.es/00/geovisorgva/vt_estilos/Basico_ICV.json");
     MVTStyles mvtStyle = new MVTStyles();
     mvtStyle.download(urlStyles);
-    int z = 15;
-    for (int y = 12465; y <= 12468; y++) {
-      for (int x = 16328; x <= 16337; x++) {
+    int z = 16;
+    for (int y = 24933; y <= 24934; y++) {
+      for (int x = 32663; x <= 32666; x++) {
         URL urlTile = new URL("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/{z}/{y}/{x}.pbf");
 //        URL urlTile = URI.create("https://gvagis.icv.gva.es/server/rest/services/Hosted/MapabaseBasico/VectorTileServer/tile/{z}/{y}/{x}.pbf").toURL();
         MVTTile mvtTile = new MVTTile(); //CRS.decode("EPSG:3857"),CRS.decode("EPSG:3857"));
+        mvtTile.setAssignScaleDenominator(true);
+        mvtTile.setTextMaxSizeLimit(10.0);
+//        mvtTile.setEnableTextPartials(true);
+        Map<String, String> params = new HashMap<>();
+        params.put("assignScaleDenominator", "true");
+        params.put("textMaxSizeLimits", "10.0");
+        params.put("showTileLimits", "true");
+        mvtTile.setParams(params);
         mvtTile.debugMode = false;
         mvtTile.download(urlTile, z, y, x, getOSMTileEnvelope(x, y, z), mvtStyle.extractFieldsFromStyles());
         BufferedImage image = mvtTile.render(mvtStyle, 512, 512);
